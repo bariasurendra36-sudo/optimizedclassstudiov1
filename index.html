@@ -943,7 +943,7 @@
             };
 
             // Image Smoothing Disabled for slightly higher speed on low-end
-            const pdfCtx = els.pdfCanvas.getContext('2d', { alpha: false }); 
+            const pdfCtx = els.pdfCanvas.getContext('2d'); 
             const drawCtx = els.drawCanvas.getContext('2d', { desynchronized: true });
             const bgCtx = els.bgCanvas.getContext('2d', { willReadFrequently: true }); 
             if (isLowEnd) { pdfCtx.imageSmoothingEnabled = false; drawCtx.imageSmoothingEnabled = false; }
@@ -1112,7 +1112,9 @@
                         const viewportCss = page.getViewport({ scale: state.baseScale }); const renderViewport = page.getViewport({ scale: state.baseScale * CANVAS_DPR });
 
                         syncCanvasSizes(viewportCss.width, viewportCss.height);
-                        pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                        pdfCtx.resetTransform(); 
+                        pdfCtx.clearRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                        pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
 
                         page.render({ canvasContext: pdfCtx, transform: [1, 0, 0, 1, 0, 0], viewport: renderViewport }).promise.then(() => {
                             state.pageIsRendering = false; loadCurrentPageDrawing();
@@ -1161,7 +1163,9 @@
 
             const drawWhiteboardBackground = () => {
                 const isMobile = window.innerWidth <= 768; syncCanvasSizes(els.wrapper.clientWidth * (isMobile ? 0.98 : 0.9), els.wrapper.clientHeight * (isMobile ? 0.98 : 0.9));
-                pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                pdfCtx.resetTransform(); 
+                pdfCtx.clearRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
 
                 const w = els.pdfCanvas.width; const h = els.pdfCanvas.height; const patternColor = isLightColor(state.boardColor) ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
 
