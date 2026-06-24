@@ -724,7 +724,8 @@
                     if (localStream) localStream.getTracks().forEach(track => track.stop());
                     
                     let constraints = { video: { facingMode: facingMode }, audio: false };
-                    if (isLowEnd) constraints.video = { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { max: 15 } };
+                    // Fix: Removed massive framerate drop on mobile. Just request lower res.
+                    if (isLowEnd) constraints.video = { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 360 } };
                     
                     navigator.mediaDevices.getUserMedia(constraints)
                     .then(stream => {
@@ -942,11 +943,10 @@
                 startRecordBtn: document.getElementById('start-record-btn'),
             };
 
-            // Image Smoothing Disabled for slightly higher speed on low-end
             const pdfCtx = els.pdfCanvas.getContext('2d'); 
             const drawCtx = els.drawCanvas.getContext('2d', { desynchronized: true });
             const bgCtx = els.bgCanvas.getContext('2d', { willReadFrequently: true }); 
-            if (isLowEnd) { pdfCtx.imageSmoothingEnabled = false; drawCtx.imageSmoothingEnabled = false; }
+            // Fix: Reverted image smoothing overrides that were making text look pixelated
 
             let peer = null;
 
@@ -1108,17 +1108,29 @@
                     
                     state.pdfDoc.getPage(pageObj.num).then(page => {
                         const isMobile = window.innerWidth <= 768; const containerWidth = els.wrapper.clientWidth * (isMobile ? 0.98 : 0.85); 
-                        const unscaledViewport = page.getViewport({ scale: 1.0 }); state.baseScale = containerWidth / unscaledViewport.width;
+                        const unscaledViewport = page.getViewport({ scale: 1.0 }); 
+                        state.baseScale = containerWidth / unscaledViewport.width;
+                        
+                        // FIX: Prevent iOS/Mobile Canvas Memory Limit from crashing the render buffer
+                        if (isMobile && state.baseScale > 1.5) state.baseScale = 1.5;
+
                         const viewportCss = page.getViewport({ scale: state.baseScale }); const renderViewport = page.getViewport({ scale: state.baseScale * CANVAS_DPR });
 
                         syncCanvasSizes(viewportCss.width, viewportCss.height);
                         pdfCtx.resetTransform(); 
                         pdfCtx.clearRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
-                        pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                        
+                        // FIX: Always fill PDF pages with pure white. Default PDFs have transparent backgrounds and black text.
+                        // Filling it with the dark board color made the text invisible (black screen).
+                        pdfCtx.fillStyle = '#ffffff'; 
+                        pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
 
                         page.render({ canvasContext: pdfCtx, transform: [1, 0, 0, 1, 0, 0], viewport: renderViewport }).promise.then(() => {
                             state.pageIsRendering = false; loadCurrentPageDrawing();
                             if (state.pageNumPending !== null) { state.currentMapIndex = state.pageNumPending; state.pageNumPending = null; renderMapPage(); }
+                        }).catch(err => {
+                            console.error("PDF Render Error: ", err);
+                            state.pageIsRendering = false;
                         });
                     });
                 }
@@ -1701,12 +1713,8 @@
                 }
                 
                 if (state.bgMode > 0) {
-                    // Frame Rate limiter for AI to save battery and limit lag on 1GB RAM Devices
-                    if (isLowEnd) {
-                        setTimeout(() => { bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); }, 1000 / 15);
-                    } else {
-                        bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); 
-                    }
+                    // Fix: Removed aggressive framerate dropping. Restored smooth camera feed rendering.
+                    bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); 
                 } else {
                     bgRemovalRafId = null;
                 }
@@ -1853,7 +1861,8 @@
                 if (els.video.srcObject) els.video.srcObject.getTracks().forEach(t => t.stop());
                 
                 let videoConstraints = true;
-                if (state.camQuality === 0 && isLowEnd) videoConstraints = { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { max: 15 } };
+                // Fix: Removed aggressive framerate dropping. Restored normal 30FPS for Eco Mode.
+                if (state.camQuality === 0 && isLowEnd) videoConstraints = { width: { ideal: 640 }, height: { ideal: 360 } };
                 else if (state.camQuality === 1) videoConstraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
                 else if (state.camQuality === 2) videoConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 } };
 
