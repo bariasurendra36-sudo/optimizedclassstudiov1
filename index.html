@@ -21,6 +21,15 @@
                         panel: '#042f2e',   /* Slightly lighter teal for navbars */
                         primary: '#2dd4bf', /* Cyan/Teal accent */
                         accent: '#0d9488'
+                    },
+                    animation: {
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { boxShadow: '0 0 10px rgba(45,212,191,0.5)' },
+                            '100%': { boxShadow: '0 0 25px rgba(45,212,191,0.9), 0 0 10px rgba(13,148,136,0.6)' }
+                        }
                     }
                 }
             }
@@ -45,15 +54,16 @@
         ::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.3); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.6); }
         
-        /* Selected States - Simplified for Low End Devices */
+        /* Selected States */
         .tool-btn.selected, .pattern-btn.selected {
             background-color: rgba(45, 212, 191, 0.2);
             color: #2dd4bf;
-            border: 1px solid rgba(45, 212, 191, 0.8);
+            border: 1px solid rgba(45, 212, 191, 0.5);
         }
         
         .tool-btn.selected {
             transform: scale(1.05);
+            animation: glow 2s ease-in-out infinite alternate;
             z-index: 10;
         }
 
@@ -63,11 +73,12 @@
             z-index: 10;
         }
 
-        /* Fixed Yellow Glow for Active/Touch States - Shadows removed for performance */
+        /* Fixed Yellow Glow for Active/Touch States */
         .tool-btn:active, .color-btn:active {
             color: #fde047 !important;
             border-color: #facc15 !important;
-            background-color: rgba(250, 204, 21, 0.3) !important;
+            box-shadow: 0 0 25px rgba(250, 204, 21, 0.9) !important;
+            background-color: rgba(250, 204, 21, 0.2) !important;
             z-index: 50 !important;
             transition: none !important;
         }
@@ -76,9 +87,9 @@
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
         
-        /* Hardware Acceleration Optimization - Removed filter from will-change */
+        /* Hardware Acceleration Optimization */
         .gpu-accelerated {
-            will-change: transform;
+            will-change: transform, filter;
             -webkit-transform: translateZ(0);
             transform: translateZ(0);
         }
@@ -106,11 +117,11 @@
 
             <div class="w-px h-6 bg-white/10 shrink-0 mx-1"></div>
 
-            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center shrink-0">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center shadow-[0_0_15px_rgba(45,212,191,0.4)] shrink-0">
                 <i class="ph-bold ph-graduation-cap text-lg sm:text-2xl text-white"></i>
             </div>
             <div>
-                <h1 class="font-bold text-sm sm:text-lg tracking-wide bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text text-transparent outline-none border-b border-transparent focus:border-teal-500/50 transition-colors whitespace-nowrap" contenteditable="true" spellcheck="false" title="Click to edit title">SB LiveClasses</h1>
+                <h1 class="font-bold text-sm sm:text-lg tracking-wide bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text text-transparent drop-shadow-sm outline-none border-b border-transparent focus:border-teal-500/50 transition-colors whitespace-nowrap" contenteditable="true" spellcheck="false" title="Click to edit title">SB LiveClasses</h1>
             </div>
         </div>
 
@@ -160,25 +171,25 @@
 
     <!-- Floating Quick Access Bar for Fullscreen Mode -->
     <div id="floating-quick-access" class="fixed top-4 left-4 z-50 flex items-center gap-1 sm:gap-2 hidden transition-opacity duration-300 opacity-40 hover:opacity-100">
-        <button id="floating-toolkit-btn" class="px-3 py-2 rounded-lg bg-[#042f2e]/95 border border-primary/30 text-primary shadow-lg transition-colors hover:bg-primary/20 active:scale-95" title="Open Toolkit">
+        <button id="floating-toolkit-btn" class="px-3 py-2 rounded-lg bg-panel/90 backdrop-blur border border-primary/30 text-primary shadow-lg transition-colors hover:bg-primary/20 active:scale-95" title="Open Toolkit">
             <i class="ph ph-toolbox text-xl sm:text-2xl"></i>
         </button>
         
         <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
         
-        <button id="floating-undo-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Undo (Ctrl+Z)">
+        <button id="floating-undo-btn" class="p-2 rounded-lg bg-panel/90 backdrop-blur border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Undo (Ctrl+Z)">
             <i class="ph ph-arrow-u-up-left text-lg"></i>
         </button>
-        <button id="floating-redo-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Redo (Ctrl+Y)">
+        <button id="floating-redo-btn" class="p-2 rounded-lg bg-panel/90 backdrop-blur border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Redo (Ctrl+Y)">
             <i class="ph ph-arrow-u-up-right text-lg"></i>
         </button>
-        <button id="floating-clear-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-red-400 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Clear Canvas">
+        <button id="floating-clear-btn" class="p-2 rounded-lg bg-panel/90 backdrop-blur border border-white/20 text-red-400 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Clear Canvas">
             <i class="ph ph-trash text-lg"></i>
         </button>
         
         <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
         
-        <div class="items-center bg-[#042f2e]/95 border border-white/20 rounded-lg shadow-lg overflow-hidden h-9 hidden sm:flex">
+        <div class="items-center bg-panel/90 backdrop-blur border border-white/20 rounded-lg shadow-lg overflow-hidden h-9 hidden sm:flex">
             <button id="floating-zoom-out-btn" class="px-2 h-full hover:bg-white/10 text-teal-100 transition active:scale-95 border-r border-white/10" title="Zoom Out">
                 <i class="ph ph-magnifying-glass-minus text-sm"></i>
             </button>
@@ -192,7 +203,7 @@
     <!-- Top-Right Slide Controls -->
     <div id="slide-controls" class="fixed top-20 sm:top-24 right-4 z-[90] transition-all duration-300 opacity-0 pointer-events-none hidden group">
         <!-- Inner wrapper to handle translucent fading effect independent of hide/show toggle -->
-        <div id="slide-controls-inner" class="bg-[#042f2e]/95 border border-primary/30 shadow-xl rounded-full px-2 py-1 flex items-center gap-1 transition-opacity duration-300">
+        <div id="slide-controls-inner" class="bg-panel/90 backdrop-blur-md border border-primary/30 shadow-xl rounded-full px-2 py-1 flex items-center gap-1 transition-opacity duration-300">
             <button id="prev-page" class="p-2 rounded-full hover:bg-white/10 text-teal-100 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-transform" title="Previous Slide">
                 <i class="ph-bold ph-caret-left text-lg"></i>
             </button>
@@ -208,7 +219,7 @@
     </div>
 
     <!-- Sidebar Toolkit Panel -->
-    <aside id="toolkit-panel" class="fixed left-0 top-0 bottom-0 w-64 sm:w-72 bg-[#042f2e]/95 border-r border-primary/40 z-[70] transform -translate-x-full transition-transform duration-300 overflow-y-auto custom-scrollbar shadow-[20px_0_50px_rgba(0,0,0,0.5)] flex flex-col pt-[max(4rem,env(safe-area-inset-top))]">
+    <aside id="toolkit-panel" class="fixed left-0 top-0 bottom-0 w-64 sm:w-72 bg-panel/95 backdrop-blur-xl border-r border-primary/40 z-[70] transform -translate-x-full transition-transform duration-300 overflow-y-auto custom-scrollbar shadow-[20px_0_50px_rgba(0,0,0,0.5)] flex flex-col pt-[max(4rem,env(safe-area-inset-top))]" style="background-color: rgba(4, 47, 46, 0.95);">
         
         <div class="p-4 flex flex-col gap-6">
             <!-- Header -->
@@ -298,7 +309,7 @@
             <div>
                 <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Color Palette</span>
                 <div class="flex flex-wrap items-center gap-3">
-                    <button class="color-btn selected text-white w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #ffffff;" data-color="#ffffff" title="White"></button>
+                    <button class="color-btn selected text-white w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #ffffff; box-shadow: 0 0 15px #ffffff, 0 0 5px #2dd4bf;" data-color="#ffffff" title="White"></button>
                     <button class="color-btn text-yellow-300 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #fde047;" data-color="#fde047" title="Yellow"></button>
                     <button class="color-btn text-orange-400 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #fb923c;" data-color="#fb923c" title="Orange"></button>
                     <button class="color-btn text-red-500 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #ef4444;" data-color="#ef4444" title="Red"></button>
@@ -391,7 +402,7 @@
             </div>
 
             <!-- Zoomable/Pannable Container -->
-            <div id="canvases-container" class="gpu-accelerated relative shadow-lg transition-transform duration-75 ease-out transform hidden origin-center rounded-lg" style="transform: translate(0px, 0px) scale(1);">
+            <div id="canvases-container" class="gpu-accelerated relative shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-transform duration-75 ease-out transform hidden origin-center rounded-lg" style="transform: translate(0px, 0px) scale(1);">
                 <video id="screen-video" autoplay playsinline muted class="hidden block rounded-lg bg-black"></video>
                 <canvas id="pdf-canvas" class="block rounded-lg bg-[#022c22]"></canvas>
                 <canvas id="draw-canvas" class="absolute top-0 left-0 rounded-lg z-10 touch-none cursor-crosshair"></canvas>
@@ -407,7 +418,7 @@
 
     <!-- Draggable Camera Window -->
     <!-- Default hidden and configured via state -->
-    <div id="camera-window" class="gpu-accelerated absolute z-[60] flex flex-col group transition-all duration-300 bg-darker rounded-2xl border border-primary/50 overflow-hidden cursor-grab active:cursor-grabbing hidden" style="left: auto; top: auto; bottom: 2rem; right: 2rem; width: 280px; height: 157px;">
+    <div id="camera-window" class="gpu-accelerated absolute z-[60] flex flex-col group transition-all duration-300 bg-darker rounded-2xl border border-primary/50 shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden cursor-grab active:cursor-grabbing hidden" style="left: auto; top: auto; bottom: 2rem; right: 2rem; width: 280px; height: 157px;">
         <div id="camera-drag-handle" class="absolute inset-0 z-20 touch-none"></div>
         
         <!-- Camera Feeds Container -->
@@ -422,119 +433,119 @@
         <div id="cam-controls-panel" class="absolute top-2 right-2 bottom-2 z-30 flex flex-col items-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 pb-1">
             
             <!-- Draw Over Toggle -->
-            <button id="cam-layer-btn" class="cam-btn-expand shrink-0 p-2 bg-amber-600/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-amber-300/50 overflow-hidden shadow-md" title="Push camera behind drawing canvas">
+            <button id="cam-layer-btn" class="cam-btn-expand shrink-0 p-2 bg-amber-500/80 hover:bg-amber-600/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-amber-300/50 overflow-hidden shadow-md" title="Push camera behind drawing canvas">
                 <i class="ph ph-layers-difference text-lg shrink-0"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Draw Over</span>
             </button>
 
             <!-- Custom Image BG -->
-            <button id="cam-image-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md mt-2">
+            <button id="cam-image-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md mt-2">
                 <i class="ph ph-image text-lg shrink-0" id="cam-image-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Image BG</span>
             </button>
             <input type="file" id="vbg-image-upload" accept="image/*" class="hidden">
 
             <!-- Color BG (Camera solid background) -->
-            <div id="cam-color-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer">
+            <div id="cam-color-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer">
                 <i class="ph ph-palette text-lg shrink-0" id="cam-color-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Color BG</span>
                 <input type="color" id="cam-bgcolor-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#022c22">
             </div>
 
             <!-- Board BG Toggle -->
-            <button id="cam-board-bg-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Board as Background">
+            <button id="cam-board-bg-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Board as Background">
                 <i class="ph ph-chalkboard text-lg shrink-0" id="cam-board-bg-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Board BG</span>
             </button>
 
             <!-- Blur Toggle -->
-            <button id="cam-blur-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+            <button id="cam-blur-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
                 <i class="ph ph-drop-half text-lg shrink-0" id="cam-blur-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Blur</span>
             </button>
 
             <!-- Cutout Toggle -->
-            <button id="cam-cutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Standard AI Cutout">
+            <button id="cam-cutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Standard AI Cutout">
                 <i class="ph ph-user-focus text-lg shrink-0" id="cam-cutout-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Std Cutout</span>
             </button>
             
             <!-- NEW: PRO Cutout Toggle -->
-            <button id="cam-procutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="High-Quality Pro Cutout">
+            <button id="cam-procutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="High-Quality Pro Cutout">
                 <i class="ph-fill ph-user-focus text-lg shrink-0" id="cam-procutout-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Pro Cutout</span>
             </button>
 
             <!-- Chroma Key Toggle -->
-            <div id="cam-chroma-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Green Screen Chroma Key">
+            <div id="cam-chroma-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Green Screen Chroma Key">
                 <i class="ph ph-projector-screen text-lg shrink-0" id="cam-chroma-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Chroma</span>
                 <input type="color" id="cam-chroma-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#00ff00">
             </div>
             
             <!-- Neon Edge Toggle -->
-            <div id="cam-neon-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Neon Edge Glow">
+            <div id="cam-neon-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Neon Edge Glow">
                 <i class="ph ph-lightning text-lg shrink-0" id="cam-neon-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Neon Glow</span>
                 <input type="color" id="cam-neon-input" class="absolute left-0 top-0 bottom-0 w-[calc(100%-36px)] opacity-0 cursor-pointer z-10" value="#2dd4bf" title="Change Neon Color">
             </div>
             
             <!-- Neon Size Toggle -->
-            <button id="cam-neon-size-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Neon Thickness">
+            <button id="cam-neon-size-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Neon Thickness">
                 <i class="ph ph-circles-three text-lg shrink-0" id="cam-neon-size-icon"></i>
                 <span id="cam-neon-size-text" class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Thin</span>
             </button>
 
             <!-- Beauty Toggle -->
-            <button id="cam-beauty-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+            <button id="cam-beauty-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
                 <i class="ph ph-sparkle text-lg shrink-0" id="cam-beauty-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Beauty</span>
             </button>
 
             <!-- Shape Toggle -->
-            <button id="cam-shape-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+            <button id="cam-shape-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
                 <i class="ph ph-bounding-box text-lg shrink-0" id="cam-shape-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Shape</span>
             </button>
 
             <!-- Mirror Toggle -->
-            <button id="cam-mirror-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+            <button id="cam-mirror-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
                 <i class="ph ph-arrows-left-right text-lg shrink-0"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Mirror</span>
             </button>
             
             <!-- Quality Toggle -->
-            <button id="cam-quality-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Toggle Camera Quality">
+            <button id="cam-quality-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Toggle Camera Quality">
                 <i class="ph ph-faders text-lg shrink-0" id="cam-quality-icon"></i>
                 <span id="cam-quality-text" class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Eco Mode</span>
             </button>
 
             <!-- Fullscreen Toggle -->
-            <button id="cam-fullscreen-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+            <button id="cam-fullscreen-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
                 <i class="ph ph-corners-out text-lg shrink-0" id="cam-fullscreen-icon"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Expand</span>
             </button>
             
             <!-- Mobile QR Link -->
-            <button id="cam-qr-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-emerald-400 flex flex-row-reverse items-center justify-start border border-emerald-500/50 overflow-hidden shadow-md mt-auto pt-2">
+            <button id="cam-qr-btn" class="cam-btn-expand shrink-0 p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md rounded-lg text-emerald-400 flex flex-row-reverse items-center justify-start border border-emerald-500/50 overflow-hidden shadow-[0_0_10px_rgba(16,185,129,0.3)] mt-auto pt-2">
                 <i class="ph ph-qr-code text-lg shrink-0"></i>
                 <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300 text-emerald-400">Mobile</span>
             </button>
         </div>
 
         <!-- QR Overlay inside Camera -->
-        <div id="cam-qr-overlay" class="absolute inset-0 z-40 bg-darker/95 flex flex-col items-center justify-center hidden rounded-inherit">
+        <div id="cam-qr-overlay" class="absolute inset-0 z-40 bg-darker/95 backdrop-blur flex flex-col items-center justify-center hidden rounded-inherit">
             <h3 class="text-primary text-[10px] sm:text-xs font-bold mb-2 uppercase tracking-wider text-center px-2">Scan to connect<br>mobile camera</h3>
             <div id="qrcode-container" class="bg-white p-1.5 sm:p-2 rounded-xl shadow-[0_0_20px_rgba(45,212,191,0.3)]"></div>
             <button id="cancel-qr-btn" class="mt-3 text-[10px] sm:text-xs bg-white/10 text-gray-300 px-4 py-1.5 rounded-full hover:bg-white/20 transition-colors active:scale-95 border border-white/20">Cancel</button>
         </div>
 
         <!-- Auto-hiding name badge -->
-        <div id="cam-name-badge" class="absolute bottom-3 left-3 z-30 bg-black/80 px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center pointer-events-none shrink-0">
+        <div id="cam-name-badge" class="absolute bottom-3 left-3 z-30 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center shadow-inner pointer-events-none shrink-0">
                 <i class="ph-fill ph-graduation-cap text-xs text-white"></i>
             </div>
-            <span class="font-bold text-sm tracking-wide text-white outline-none border-b border-transparent focus:border-white/50 transition-colors whitespace-nowrap pointer-events-auto" contenteditable="true" spellcheck="false" title="Click to edit name">Surendra Baria</span>
+            <span class="font-bold text-sm tracking-wide text-white drop-shadow-md outline-none border-b border-transparent focus:border-white/50 transition-colors whitespace-nowrap pointer-events-auto" contenteditable="true" spellcheck="false" title="Click to edit name">Surendra Baria</span>
         </div>
         <div id="cam-status" class="absolute inset-0 flex flex-col items-center justify-center bg-darker z-10 pointer-events-none rounded-inherit">
             <i class="ph ph-camera-slash text-3xl text-teal-700 mb-2"></i>
@@ -543,16 +554,16 @@
         
         <!-- Resize Handle -->
         <div id="camera-resize-handle" class="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize z-50 flex items-end justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity touch-none">
-            <i class="ph ph-arrows-out-simple text-primary"></i>
+            <i class="ph ph-arrows-out-simple text-primary drop-shadow-md"></i>
         </div>
     </div>
 
     <!-- Tablet Drawing Pad QR Overlay -->
-    <div id="pad-qr-overlay" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+    <div id="pad-qr-overlay" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center">
         <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-[420px] shadow-2xl mx-4 flex flex-col items-center">
             <h3 class="text-xl font-bold mb-2 text-white flex items-center gap-2"><i class="ph-fill ph-tablet text-emerald-400"></i> Wireless Drawing Pad</h3>
             <p class="text-sm text-teal-100 mb-5 text-center">Scan this code with your iPad or Tablet to securely link it as a drawing surface for this PC.</p>
-            <div id="pad-qrcode-container" class="bg-white p-3 rounded-xl mb-6"></div>
+            <div id="pad-qrcode-container" class="bg-white p-3 rounded-xl shadow-[0_0_20px_rgba(45,212,191,0.3)] mb-6"></div>
             <div class="flex justify-end gap-3 w-full border-t border-white/10 pt-4">
                 <button id="cancel-pad-qr-btn" class="w-full px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Close</button>
             </div>
@@ -560,7 +571,7 @@
     </div>
 
     <!-- Record Setup Modal -->
-    <div id="record-modal" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+    <div id="record-modal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center">
         <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-[420px] shadow-2xl mx-4">
             <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="ph-fill ph-record text-red-500"></i> Smart Class Recording</h3>
             <p class="text-sm text-teal-100 mb-5">To record your class perfectly, click the button below and select the <b>"This Tab"</b> option in the browser popup.</p>
@@ -570,7 +581,7 @@
             </div>
             <div class="flex justify-end gap-3">
                 <button id="cancel-record-btn" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Cancel</button>
-                <button id="start-record-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors active:scale-95 flex items-center gap-2">
+                <button id="start-record-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 active:scale-95 flex items-center gap-2">
                     <i class="ph-bold ph-video-camera"></i> Pick Tab & Record
                 </button>
             </div>
@@ -578,14 +589,14 @@
     </div>
 
     <!-- YouTube Stream Key Modal -->
-    <div id="stream-modal" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+    <div id="stream-modal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center">
         <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-96 shadow-2xl mx-4">
             <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="ph-fill ph-youtube-logo text-red-500"></i> YouTube Live</h3>
             <p class="text-sm text-teal-200 mb-4">Enter your YouTube Stream Key. The app will securely route your video through your local bridge directly to YouTube.</p>
             <input type="password" id="youtube-stream-key" placeholder="Paste Stream Key here (e.g. xxxx-xxxx-xxxx-xxxx)" class="w-full bg-darker border border-primary/30 rounded-lg px-4 py-2 text-white mb-6 focus:outline-none focus:border-primary transition-colors">
             <div class="flex justify-end gap-3">
                 <button id="cancel-stream-btn" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Cancel</button>
-                <button id="start-stream-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors active:scale-95 flex items-center gap-2">
+                <button id="start-stream-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 active:scale-95 flex items-center gap-2">
                     <i class="ph-bold ph-broadcast"></i> Go Live
                 </button>
             </div>
@@ -600,12 +611,6 @@
                 e.preventDefault(); 
             }
         });
-
-        // Device Capability Detection for Ultra Low End Optimization
-        const isLowEnd = (navigator.deviceMemory || 4) <= 2 || (navigator.hardwareConcurrency || 4) <= 2;
-        
-        // Dynamically cap Canvas DPI to 1 on low-end devices to save 400% memory and fix lag
-        const CANVAS_DPR = isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
 
         const initPolling = setInterval(() => {
             if (typeof pdfjsLib !== 'undefined' && typeof Peer !== 'undefined') {
@@ -630,14 +635,14 @@
                         <div class="h-14 bg-panel border-b border-primary/20 flex items-center justify-between px-4 z-50 shadow-md">
                             <div class="text-teal-200 font-bold flex items-center gap-2"><i class="ph ph-tablet text-xl"></i> Drawing Pad Connected</div>
                             <div class="flex items-center gap-3">
-                                 <input type="color" id="pad-color" value="#ffffff" class="w-8 h-8 rounded-full cursor-pointer border-2 border-white transition-all bg-transparent">
+                                 <input type="color" id="pad-color" value="#ffffff" class="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-[0_0_10px_#ffffff] transition-all bg-transparent">
                                  <input type="range" id="pad-size" min="1" max="50" value="4" class="w-24 accent-primary">
                                  <button id="pad-eraser" class="text-teal-200 p-2 hover:bg-white/10 rounded-lg transition-colors border border-transparent"><i class="ph ph-eraser text-xl"></i></button>
                                  <button id="pad-clear" class="text-red-400 p-2 hover:bg-white/10 rounded-lg transition-colors"><i class="ph ph-trash text-xl"></i></button>
                             </div>
                         </div>
                         <div class="flex-1 relative w-full h-full p-2 touch-none">
-                             <canvas id="pad-canvas" class="w-full h-full bg-[#022c22] rounded-xl touch-none cursor-crosshair"></canvas>
+                             <canvas id="pad-canvas" class="w-full h-full bg-[#022c22] rounded-xl shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] touch-none cursor-crosshair"></canvas>
                         </div>
                     </div>
                 `;
@@ -668,6 +673,7 @@
                     else eraserBtn.classList.remove('bg-white/20', 'border-primary/50');
                 });
                 
+                colorInput.addEventListener('input', (e) => { colorInput.style.boxShadow = `0 0 10px ${e.target.value}`; });
                 document.getElementById('pad-clear').addEventListener('click', () => { ctx.clearRect(0,0,canvas.width,canvas.height); if(conn) conn.send({type: 'clear'}); });
 
                 const getNormalizedPos = (e) => {
@@ -703,14 +709,14 @@
                 document.body.innerHTML = `
                     <div class="h-screen w-screen bg-black flex flex-col items-center justify-center text-white relative font-sans overflow-hidden">
                         <video id="mobile-sender-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-contain z-0"></video>
-                        <div id="mobile-status" class="z-10 absolute top-8 bg-black/80 px-6 py-3 rounded-full text-sm font-medium flex items-center gap-3 shadow-xl border border-white/10 transition-colors">
+                        <div id="mobile-status" class="z-10 absolute top-8 bg-black/60 backdrop-blur-md px-6 py-3 rounded-full text-sm font-medium flex items-center gap-3 shadow-xl border border-white/10 transition-colors">
                             <i class="ph ph-spinner animate-spin text-primary text-xl"></i> 
                             <span>Connecting to Class...</span>
                         </div>
-                        <button id="mobile-flip" class="absolute top-8 right-6 z-10 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full shadow-lg transition-transform active:scale-95 border border-white/10">
+                        <button id="mobile-flip" class="absolute top-8 right-6 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-3 rounded-full shadow-lg transition-transform active:scale-95 border border-white/10">
                             <i class="ph ph-camera-rotate text-2xl"></i>
                         </button>
-                        <button id="mobile-stop" class="absolute bottom-12 z-10 bg-red-500/90 hover:bg-red-600 text-white px-8 py-4 rounded-full font-bold shadow-xl flex items-center gap-2 transition-transform active:scale-95 border border-red-400/50">
+                        <button id="mobile-stop" class="absolute bottom-12 z-10 bg-red-500/90 hover:bg-red-600 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold shadow-2xl flex items-center gap-2 transition-transform active:scale-95 border border-red-400/50">
                             <i class="ph ph-x-circle text-2xl"></i> Stop Camera
                         </button>
                     </div>
@@ -722,12 +728,7 @@
 
                 const startMobileCam = (facingMode) => {
                     if (localStream) localStream.getTracks().forEach(track => track.stop());
-                    
-                    let constraints = { video: { facingMode: facingMode }, audio: false };
-                    // Fix: Removed massive framerate drop on mobile. Just request lower res.
-                    if (isLowEnd) constraints.video = { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 360 } };
-                    
-                    navigator.mediaDevices.getUserMedia(constraints)
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode }, audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true } })
                     .then(stream => {
                         localStream = stream; videoEl.srcObject = stream;
                         if (window.mobileCall && window.mobileCall.peerConnection) {
@@ -749,7 +750,7 @@
                         setTimeout(() => {
                             if (localStream) {
                                 window.mobileCall = peer.call('sblive-host-' + syncCode, localStream);
-                                statusEl.innerHTML = '<i class="ph ph-broadcast text-primary text-xl"></i> <span class="text-primary">Live: Broadcasting</span>';
+                                statusEl.innerHTML = '<i class="ph ph-broadcast text-primary animate-pulse text-xl"></i> <span class="text-primary">Live: Broadcasting</span>';
                                 statusEl.classList.replace('border-white/10', 'border-primary/50');
                             }
                         }, 1000);
@@ -779,6 +780,8 @@
             // ==========================================
             // MAIN DESKTOP/IPAD APP (Host)
             // ==========================================
+            // Reduced to prevent software-rendering lag and handle touch fluidity
+            const CANVAS_DPR = Math.min(window.devicePixelRatio || 2, 2); 
 
             const state = {
                 pdfDoc: null, baseScale: 1.5, zoomLevel: 1.0, panX: 0, panY: 0,
@@ -943,11 +946,9 @@
                 startRecordBtn: document.getElementById('start-record-btn'),
             };
 
-            const pdfCtx = els.pdfCanvas.getContext('2d'); 
+            const pdfCtx = els.pdfCanvas.getContext('2d', { alpha: false }); 
             const drawCtx = els.drawCanvas.getContext('2d', { desynchronized: true });
             const bgCtx = els.bgCanvas.getContext('2d', { willReadFrequently: true }); 
-            // Fix: Reverted image smoothing overrides that were making text look pixelated
-
             let peer = null;
 
             // --- UI Setup: Toolkit Sidebar & Menus ---
@@ -1108,29 +1109,15 @@
                     
                     state.pdfDoc.getPage(pageObj.num).then(page => {
                         const isMobile = window.innerWidth <= 768; const containerWidth = els.wrapper.clientWidth * (isMobile ? 0.98 : 0.85); 
-                        const unscaledViewport = page.getViewport({ scale: 1.0 }); 
-                        state.baseScale = containerWidth / unscaledViewport.width;
-                        
-                        // FIX: Prevent iOS/Mobile Canvas Memory Limit from crashing the render buffer
-                        if (isMobile && state.baseScale > 1.5) state.baseScale = 1.5;
-
+                        const unscaledViewport = page.getViewport({ scale: 1.0 }); state.baseScale = containerWidth / unscaledViewport.width;
                         const viewportCss = page.getViewport({ scale: state.baseScale }); const renderViewport = page.getViewport({ scale: state.baseScale * CANVAS_DPR });
 
                         syncCanvasSizes(viewportCss.width, viewportCss.height);
-                        pdfCtx.resetTransform(); 
-                        pdfCtx.clearRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
-                        
-                        // FIX: Always fill PDF pages with pure white. Default PDFs have transparent backgrounds and black text.
-                        // Filling it with the dark board color made the text invisible (black screen).
-                        pdfCtx.fillStyle = '#ffffff'; 
-                        pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                        pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
 
                         page.render({ canvasContext: pdfCtx, transform: [1, 0, 0, 1, 0, 0], viewport: renderViewport }).promise.then(() => {
                             state.pageIsRendering = false; loadCurrentPageDrawing();
                             if (state.pageNumPending !== null) { state.currentMapIndex = state.pageNumPending; state.pageNumPending = null; renderMapPage(); }
-                        }).catch(err => {
-                            console.error("PDF Render Error: ", err);
-                            state.pageIsRendering = false;
                         });
                     });
                 }
@@ -1175,9 +1162,7 @@
 
             const drawWhiteboardBackground = () => {
                 const isMobile = window.innerWidth <= 768; syncCanvasSizes(els.wrapper.clientWidth * (isMobile ? 0.98 : 0.9), els.wrapper.clientHeight * (isMobile ? 0.98 : 0.9));
-                pdfCtx.resetTransform(); 
-                pdfCtx.clearRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
-                pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+                pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
 
                 const w = els.pdfCanvas.width; const h = els.pdfCanvas.height; const patternColor = isLightColor(state.boardColor) ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
 
@@ -1549,7 +1534,7 @@
                 
                 if (state.isCamBehind) {
                     els.camLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-lg shrink-0"></i><span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Bring Front</span>';
-                    els.camLayerBtn.classList.replace('bg-amber-600/90', 'bg-red-600/90');
+                    els.camLayerBtn.classList.replace('bg-amber-500/80', 'bg-red-500/80');
                     els.camLayerBtn.classList.replace('border-amber-300/50', 'border-red-300/50');
                     
                     els.toolkitCamLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-xl"></i><span class="text-xs font-bold tracking-wide">Bring Camera to Front</span>';
@@ -1557,7 +1542,7 @@
                     els.toolkitCamLayerBtn.classList.replace('bg-amber-500/10', 'bg-red-500/10');
                 } else {
                     els.camLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-lg shrink-0"></i><span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Draw Over</span>';
-                    els.camLayerBtn.classList.replace('bg-red-600/90', 'bg-amber-600/90');
+                    els.camLayerBtn.classList.replace('bg-red-500/80', 'bg-amber-500/80');
                     els.camLayerBtn.classList.replace('border-red-300/50', 'border-amber-300/50');
 
                     els.toolkitCamLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-xl"></i><span class="text-xs font-bold tracking-wide">Push Camera to Back</span>';
@@ -1658,8 +1643,8 @@
                 if (els.bgCanvas.width !== els.video.videoWidth) { els.bgCanvas.width = els.video.videoWidth; els.bgCanvas.height = els.video.videoHeight; }
                 bgCtx.save(); bgCtx.clearRect(0, 0, els.bgCanvas.width, els.bgCanvas.height);
                 
-                // Advanced Pro Edge Feathering - Disabled on Low End to save GPU power
-                bgCtx.filter = state.cutoutMode === 'pro' && !isLowEnd ? 'blur(3px)' : 'none'; 
+                // Advanced Pro Edge Feathering
+                bgCtx.filter = state.cutoutMode === 'pro' ? 'blur(3px)' : 'blur(1.5px)'; 
                 
                 bgCtx.globalCompositeOperation = 'source-over'; bgCtx.drawImage(results.segmentationMask, 0, 0, els.bgCanvas.width, els.bgCanvas.height);
                 bgCtx.filter = 'none'; bgCtx.globalCompositeOperation = 'destination-in'; bgCtx.drawImage(els.bgCanvas, 0, 0); bgCtx.drawImage(els.bgCanvas, 0, 0); 
@@ -1711,13 +1696,7 @@
                     else if (state.cutoutMode === 'chroma' && els.video.videoWidth > 0) applyChromaKey(); 
                     isProcessingBg = false;
                 }
-                
-                if (state.bgMode > 0) {
-                    // Fix: Removed aggressive framerate dropping. Restored smooth camera feed rendering.
-                    bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); 
-                } else {
-                    bgRemovalRafId = null;
-                }
+                if (state.bgMode > 0) bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); else bgRemovalRafId = null;
             };
             
             els.video.addEventListener('play', () => { if (state.bgMode > 0 && !bgRemovalRafId) { isProcessingBg = false; processBackgroundEngine(); }});
@@ -1818,6 +1797,7 @@
 
                 if (state.isNeonMode && state.bgMode > 0 && state.bgMode !== 4) filterStr += neonFilter;
                 else if (state.isNeonMode && state.bgMode === 4) filterStr += neonFilter;
+                else if (state.bgMode === 1 && !isMaximized) filterStr += ' drop-shadow(0px 10px 15px rgba(0,0,0,0.5))';
                 
                 if (filterStr.startsWith('none ')) filterStr = filterStr.replace('none ', '');
 
@@ -1859,11 +1839,8 @@
 
             const startLocalCamera = () => {
                 if (els.video.srcObject) els.video.srcObject.getTracks().forEach(t => t.stop());
-                
                 let videoConstraints = true;
-                // Fix: Removed aggressive framerate dropping. Restored normal 30FPS for Eco Mode.
-                if (state.camQuality === 0 && isLowEnd) videoConstraints = { width: { ideal: 640 }, height: { ideal: 360 } };
-                else if (state.camQuality === 1) videoConstraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
+                if (state.camQuality === 1) videoConstraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
                 else if (state.camQuality === 2) videoConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 } };
 
                 navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false })
