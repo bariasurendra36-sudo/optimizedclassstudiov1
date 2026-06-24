@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- strict viewport to prevent accidental UI zooming on touch devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SB Live Classes | Studio</title>
+    
+    <!-- Tailwind CSS MUST be loaded before the config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configure Tailwind Theme -->
+    <script>
+        window.tailwind = window.tailwind || {};
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#022c22',    /* Deep teal background (EdTech style) */
+                        darker: '#011c16',  /* Darker teal for body */
+                        panel: '#042f2e',   /* Slightly lighter teal for navbars */
+                        primary: '#2dd4bf', /* Cyan/Teal accent */
+                        accent: '#0d9488'
+                    }
+                }
+            }
+        };
+    </script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- PeerJS for WebRTC Device Syncing -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- QRCode.js for generating connection QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- MediaPipe Selfie Segmentation -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.6); }
+        
+        /* Selected States - Simplified for Low End Devices */
+        .tool-btn.selected, .pattern-btn.selected {
+            background-color: rgba(45, 212, 191, 0.2);
+            color: #2dd4bf;
+            border: 1px solid rgba(45, 212, 191, 0.8);
+        }
+        
+        .tool-btn.selected {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .color-btn.selected {
+            border-color: white;
+            transform: scale(1.25);
+            z-index: 10;
+        }
+
+        /* Fixed Yellow Glow for Active/Touch States - Shadows removed for performance */
+        .tool-btn:active, .color-btn:active {
+            color: #fde047 !important;
+            border-color: #facc15 !important;
+            background-color: rgba(250, 204, 21, 0.3) !important;
+            z-index: 50 !important;
+            transition: none !important;
+        }
+
+        /* Input color styling */
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+        
+        /* Hardware Acceleration Optimization - Removed filter from will-change */
+        .gpu-accelerated {
+            will-change: transform;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        /* Expanding Button for Camera Controls */
+        .cam-btn-expand {
+            width: 36px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+        }
+        .cam-btn-expand:hover {
+            width: 110px; /* Expands to show text */
+        }
+        .cam-btn-expand:hover span { opacity: 1 !important; }
+    </style>
+</head>
+<body class="bg-darker text-white h-screen w-screen overflow-hidden flex flex-col font-sans select-none" style="background-color: #011c16; color: #ffffff;">
+
+    <!-- Top Navigation Bar -->
+    <header id="top-header" class="h-16 bg-panel border-b border-primary/20 flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 shadow-md transition-all duration-300 relative" style="background-color: #042f2e;">
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Toolkit Toggle Button -->
+            <button id="toggle-toolkit-btn" class="px-3 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors border border-primary/30 flex items-center gap-2 active:scale-95 shrink-0" title="Open Studio Toolkit">
+                <i class="ph ph-toolbox text-xl sm:text-2xl"></i>
+            </button>
+
+            <div class="w-px h-6 bg-white/10 shrink-0 mx-1"></div>
+
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-graduation-cap text-lg sm:text-2xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm sm:text-lg tracking-wide bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text text-transparent outline-none border-b border-transparent focus:border-teal-500/50 transition-colors whitespace-nowrap" contenteditable="true" spellcheck="false" title="Click to edit title">SB LiveClasses</h1>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3 overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
+            <!-- App Fullscreen -->
+            <button id="app-fullscreen-btn" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-teal-100 transition-colors border border-white/10 flex items-center gap-2 active:scale-95 shrink-0" title="Toggle App Fullscreen">
+                <i class="ph ph-corners-out text-lg" id="app-fullscreen-icon"></i>
+            </button>
+            <div class="w-px h-6 bg-white/10 hidden sm:block shrink-0"></div>
+
+            <button id="toggle-camera-btn" class="px-3 py-2 rounded-lg bg-white/5 text-teal-100 hover:bg-white/10 text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 active:scale-95 shrink-0">
+                <i class="ph ph-video-camera-slash text-lg" id="camera-icon"></i>
+                <span class="hidden xl:inline">Camera</span>
+            </button>
+            
+            <button id="toggle-discussion-btn" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 active:scale-95 text-teal-100 shrink-0" title="Full Screen Discussion Mode">
+                <i class="ph ph-users-three text-lg"></i>
+                <span class="hidden md:inline">Discuss</span>
+            </button>
+            
+            <div class="w-px h-6 bg-white/10 shrink-0"></div>
+            
+            <button id="toggle-screen-btn" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 active:scale-95 text-teal-100 shrink-0">
+                <i class="ph ph-screencast text-lg"></i>
+                <span class="hidden md:inline">Share</span>
+            </button>
+            
+            <div class="w-px h-6 bg-white/10 hidden xl:block shrink-0"></div>
+            
+            <button id="record-btn" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-red-400 text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 active:scale-95 hidden xl:flex shrink-0" title="Record Class (WebM)">
+                <i class="ph-fill ph-record" id="record-icon"></i>
+                <span id="record-text">Record</span>
+            </button>
+            
+            <button id="stream-btn" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-400 text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 active:scale-95 hidden xl:flex shrink-0" title="Stream via WebSockets to RTMP Bridge">
+                <i class="ph ph-broadcast" id="stream-icon"></i>
+                <span id="stream-text">Go Live</span>
+            </button>
+            
+            <label class="px-3 sm:px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-darker text-sm font-bold transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-95 shrink-0">
+                <i class="ph ph-upload-simple text-lg"></i>
+                <span class="hidden md:inline">Load PDF</span>
+                <input type="file" id="pdf-upload" accept="application/pdf" class="hidden" />
+            </label>
+        </div>
+    </header>
+
+    <!-- Floating Quick Access Bar for Fullscreen Mode -->
+    <div id="floating-quick-access" class="fixed top-4 left-4 z-50 flex items-center gap-1 sm:gap-2 hidden transition-opacity duration-300 opacity-40 hover:opacity-100">
+        <button id="floating-toolkit-btn" class="px-3 py-2 rounded-lg bg-[#042f2e]/95 border border-primary/30 text-primary shadow-lg transition-colors hover:bg-primary/20 active:scale-95" title="Open Toolkit">
+            <i class="ph ph-toolbox text-xl sm:text-2xl"></i>
+        </button>
+        
+        <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
+        
+        <button id="floating-undo-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Undo (Ctrl+Z)">
+            <i class="ph ph-arrow-u-up-left text-lg"></i>
+        </button>
+        <button id="floating-redo-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-teal-100 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Redo (Ctrl+Y)">
+            <i class="ph ph-arrow-u-up-right text-lg"></i>
+        </button>
+        <button id="floating-clear-btn" class="p-2 rounded-lg bg-[#042f2e]/95 border border-white/20 text-red-400 shadow-lg transition-colors hover:bg-white/10 active:scale-95" title="Clear Canvas">
+            <i class="ph ph-trash text-lg"></i>
+        </button>
+        
+        <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
+        
+        <div class="items-center bg-[#042f2e]/95 border border-white/20 rounded-lg shadow-lg overflow-hidden h-9 hidden sm:flex">
+            <button id="floating-zoom-out-btn" class="px-2 h-full hover:bg-white/10 text-teal-100 transition active:scale-95 border-r border-white/10" title="Zoom Out">
+                <i class="ph ph-magnifying-glass-minus text-sm"></i>
+            </button>
+            <span id="floating-zoom-text" class="px-2 text-xs font-bold text-teal-100 select-none min-w-[3rem] text-center">100%</span>
+            <button id="floating-zoom-in-btn" class="px-2 h-full hover:bg-white/10 text-teal-100 transition active:scale-95 border-l border-white/10" title="Zoom In">
+                <i class="ph ph-magnifying-glass-plus text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Top-Right Slide Controls -->
+    <div id="slide-controls" class="fixed top-20 sm:top-24 right-4 z-[90] transition-all duration-300 opacity-0 pointer-events-none hidden group">
+        <!-- Inner wrapper to handle translucent fading effect independent of hide/show toggle -->
+        <div id="slide-controls-inner" class="bg-[#042f2e]/95 border border-primary/30 shadow-xl rounded-full px-2 py-1 flex items-center gap-1 transition-opacity duration-300">
+            <button id="prev-page" class="p-2 rounded-full hover:bg-white/10 text-teal-100 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-transform" title="Previous Slide">
+                <i class="ph-bold ph-caret-left text-lg"></i>
+            </button>
+            <span class="text-xs font-medium w-16 text-center text-white select-none"><span id="page-num" class="text-primary font-bold">0</span> / <span id="page-count">0</span></span>
+            <button id="next-page" class="p-2 rounded-full hover:bg-white/10 text-teal-100 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-transform" title="Next Slide">
+                <i class="ph-bold ph-caret-right text-lg"></i>
+            </button>
+            <div class="w-px h-5 bg-white/20 mx-1"></div>
+            <button id="add-slide-btn" class="p-2 rounded-full hover:bg-primary/20 text-emerald-400 active:scale-95 transition-transform" title="Insert Blank Whiteboard Slide">
+                <i class="ph-bold ph-plus text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Toolkit Panel -->
+    <aside id="toolkit-panel" class="fixed left-0 top-0 bottom-0 w-64 sm:w-72 bg-[#042f2e]/95 border-r border-primary/40 z-[70] transform -translate-x-full transition-transform duration-300 overflow-y-auto custom-scrollbar shadow-[20px_0_50px_rgba(0,0,0,0.5)] flex flex-col pt-[max(4rem,env(safe-area-inset-top))]">
+        
+        <div class="p-4 flex flex-col gap-6">
+            <!-- Header -->
+            <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                <h2 class="text-teal-100 font-bold text-lg flex items-center gap-2"><i class="ph ph-toolbox"></i> Toolkit</h2>
+                <button id="close-toolkit-btn" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-teal-100 transition-colors"><i class="ph ph-x"></i></button>
+            </div>
+
+            <!-- View Modes -->
+            <div>
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Presentation Mode</span>
+                <button id="toggle-whiteboard-btn" class="w-full py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-teal-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10" title="Toggle Whiteboard/Slides">
+                    <i class="ph ph-presentation-chart text-xl"></i>
+                    <span class="text-sm font-bold tracking-wide">Switch to Board</span>
+                </button>
+            </div>
+
+            <!-- Board Style (Moved High Priority) -->
+            <div>
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Background Style</span>
+                <div class="flex items-center gap-2 bg-darker p-2 rounded-xl border border-white/10 justify-between">
+                    <div class="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/30 hover:border-white transition-colors cursor-pointer" title="Background Color" id="board-color-display" style="background-color: #022c22;">
+                        <input type="color" id="board-color-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#022c22" />
+                    </div>
+                    <div class="flex gap-1">
+                        <button id="pattern-solid" data-pattern="solid" class="pattern-btn selected p-2 rounded-lg text-teal-200 hover:bg-white/10 border border-transparent transition-all" title="Solid Board"><i class="ph ph-square text-lg"></i></button>
+                        <button id="pattern-lines" data-pattern="lines" class="pattern-btn p-2 rounded-lg text-teal-200 hover:bg-white/10 border border-transparent transition-all" title="Lined Board"><i class="ph ph-rows text-lg"></i></button>
+                        <button id="pattern-dots" data-pattern="dots" class="pattern-btn p-2 rounded-lg text-teal-200 hover:bg-white/10 border border-transparent transition-all" title="Dotted Board"><i class="ph ph-dots-nine text-lg"></i></button>
+                        <label id="board-bg-upload-label" class="pattern-btn p-2 rounded-lg text-teal-200 hover:bg-white/10 border border-transparent transition-all cursor-pointer" title="Custom Image Background">
+                            <i class="ph ph-image text-lg"></i>
+                            <input type="file" id="board-bg-upload" accept="image/*" class="hidden" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drawing Tools Grid -->
+            <div>
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Draw & Annotate</span>
+                <div class="grid grid-cols-4 gap-2">
+                    <button id="tool-pen" class="tool-btn selected py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Pen (P)">
+                        <i class="ph ph-pencil-simple text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Pen</span>
+                    </button>
+                    <button id="tool-highlight" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Highlighter (H)">
+                        <i class="ph ph-highlighter text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Marker</span>
+                    </button>
+                    <button id="tool-text" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Text Note (T)">
+                        <i class="ph ph-text-t text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Text</span>
+                    </button>
+                    <button id="tool-eraser" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Eraser (E)">
+                        <i class="ph ph-eraser text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Eraser</span>
+                    </button>
+                    
+                    <button id="tool-line" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Straight Line (/)">
+                        <i class="ph ph-line-segment text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Line</span>
+                    </button>
+                    <button id="tool-rect" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Rectangle Shape">
+                        <i class="ph ph-rectangle text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Rect</span>
+                    </button>
+                    <button id="tool-circle" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Circle Shape">
+                        <i class="ph ph-circle text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Circle</span>
+                    </button>
+                    <button id="tool-laser" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Laser Pointer (L)">
+                        <i class="ph ph-magic-wand text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Laser</span>
+                    </button>
+                    
+                    <button id="tool-spotlight" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent col-span-2" title="Presentation Spotlight (S)">
+                        <i class="ph ph-focus text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Focus Spotlight</span>
+                    </button>
+                    <button id="tool-pan" class="tool-btn py-3 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent col-span-2" title="Pan / Move Canvas (Hold Spacebar)">
+                        <i class="ph ph-hand-palm text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Pan View</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pen Colors -->
+            <div>
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Color Palette</span>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button class="color-btn selected text-white w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #ffffff;" data-color="#ffffff" title="White"></button>
+                    <button class="color-btn text-yellow-300 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #fde047;" data-color="#fde047" title="Yellow"></button>
+                    <button class="color-btn text-orange-400 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #fb923c;" data-color="#fb923c" title="Orange"></button>
+                    <button class="color-btn text-red-500 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #ef4444;" data-color="#ef4444" title="Red"></button>
+                    <button class="color-btn text-pink-400 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #f472b6;" data-color="#f472b6" title="Pink"></button>
+                    <button class="color-btn text-blue-400 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #60a5fa;" data-color="#60a5fa" title="Blue"></button>
+                    <button class="color-btn text-emerald-400 w-6 h-6 rounded-full border-2 border-transparent transition-all duration-300 relative" style="background-color: #34d399;" data-color="#34d399" title="Green"></button>
+                    <div class="relative w-6 h-6 rounded-full overflow-hidden border-2 border-transparent hover:scale-110 transition-transform cursor-pointer" title="Custom Color" id="custom-color-wrapper" style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);">
+                        <input type="color" id="custom-color-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#00ff00" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Size Slider -->
+            <div class="bg-darker p-3 rounded-xl border border-white/10">
+                <div class="flex justify-between items-center mb-1">
+                    <span id="slider-label" class="text-xs text-teal-100 font-bold">Pen Size</span>
+                    <i class="ph ph-circles-three-plus text-teal-400"></i>
+                </div>
+                <input type="range" id="size-slider" min="1" max="60" value="4" class="w-full h-1.5 bg-dark border border-primary/30 rounded-lg appearance-none cursor-pointer accent-primary mt-2">
+            </div>
+
+            <!-- Actions -->
+            <div>
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block">Actions</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="tool-undo" class="tool-btn py-2 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Undo (Ctrl+Z)">
+                        <i class="ph ph-arrow-u-up-left text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Undo</span>
+                    </button>
+                    <button id="tool-redo" class="tool-btn py-2 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-white hover:bg-white/10 relative border border-transparent" title="Redo (Ctrl+Y)">
+                        <i class="ph ph-arrow-u-up-right text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Redo</span>
+                    </button>
+                    <button id="tool-clear" class="tool-btn py-2 rounded-xl transition-all duration-300 flex flex-col items-center justify-center text-teal-200 hover:text-red-400 hover:bg-white/10 relative border border-transparent" title="Clear Canvas">
+                        <i class="ph ph-trash text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold uppercase tracking-wider mt-1 opacity-80">Clear</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="bg-darker p-3 rounded-xl border border-white/10">
+                <span class="text-[10px] text-teal-400 uppercase font-bold tracking-wider mb-2 block text-center">Zoom Level</span>
+                <div class="flex justify-between items-center bg-dark rounded-lg overflow-hidden border border-white/5 h-8">
+                    <button id="zoom-out-btn" class="px-4 hover:bg-white/10 text-teal-100 transition active:scale-95 h-full border-r border-white/5" title="Zoom Out">
+                        <i class="ph ph-magnifying-glass-minus text-sm"></i>
+                    </button>
+                    <input type="text" id="zoom-input" class="w-full bg-transparent text-center hover:bg-white/5 text-teal-100 transition text-xs font-bold focus:outline-none h-full" value="100%" title="Edit Zoom Level / Double-click to reset">
+                    <button id="zoom-in-btn" class="px-4 hover:bg-white/10 text-teal-100 transition active:scale-95 h-full border-l border-white/5" title="Zoom In">
+                        <i class="ph ph-magnifying-glass-plus text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Camera Layer Override Tool -->
+            <div class="mt-2">
+                <span class="text-[10px] text-amber-400 uppercase font-bold tracking-wider mb-2 block">Camera Layering</span>
+                <button id="toolkit-cam-layer-btn" class="w-full py-2.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 shadow-md">
+                    <i class="ph ph-layers-difference text-xl"></i>
+                    <span class="text-xs font-bold tracking-wide">Push Camera to Back</span>
+                </button>
+                <p class="text-[9px] text-teal-100/50 mt-2 text-center leading-tight">Pushing camera to back allows you to write right over it without interruption.</p>
+            </div>
+            
+            <!-- Tablet Drawing Pad Sync -->
+            <div class="mt-4 border-t border-white/10 pt-6 pb-8">
+                <span class="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-2 block">Link Devices</span>
+                <button id="toolkit-link-pad-btn" class="w-full py-2.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 shadow-md">
+                    <i class="ph ph-tablet text-xl"></i>
+                    <span class="text-xs font-bold tracking-wide">Connect Drawing Pad</span>
+                </button>
+                <p class="text-[9px] text-teal-100/50 mt-2 text-center leading-tight">Use your iPad or Tablet as a wireless drawing surface for this PC.</p>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative bg-dark flex flex-col overflow-hidden w-full" style="background-color: #022c22;">
+        
+        <!-- Canvas Container Wrapper -->
+        <div id="canvas-wrapper" class="absolute inset-0 flex items-center justify-center p-0 sm:p-4 custom-scrollbar origin-center w-full transition-shadow duration-300 touch-none">
+            
+            <!-- Instruction Overlay -->
+            <div id="instruction-overlay" class="absolute inset-0 flex flex-col items-center justify-center text-teal-200/50 z-0 pointer-events-none px-4 text-center">
+                <i class="ph ph-chalkboard-teacher text-5xl sm:text-7xl mb-4 opacity-50"></i>
+                <h2 class="text-xl sm:text-2xl font-bold text-teal-100">Welcome to the Studio</h2>
+                <p class="text-sm mt-2 opacity-80">Load a PDF or switch to Whiteboard mode to start</p>
+                <p class="text-xs mt-4 opacity-60">Pro Tip: Drag and drop any image onto the board!<br>Tablet Users: Swipe with two fingers to pan the canvas.</p>
+            </div>
+
+            <!-- Zoomable/Pannable Container -->
+            <div id="canvases-container" class="gpu-accelerated relative shadow-lg transition-transform duration-75 ease-out transform hidden origin-center rounded-lg" style="transform: translate(0px, 0px) scale(1);">
+                <video id="screen-video" autoplay playsinline muted class="hidden block rounded-lg bg-black"></video>
+                <canvas id="pdf-canvas" class="block rounded-lg bg-[#022c22]"></canvas>
+                <canvas id="draw-canvas" class="absolute top-0 left-0 rounded-lg z-10 touch-none cursor-crosshair"></canvas>
+                <canvas id="laser-canvas" class="absolute top-0 left-0 rounded-lg z-20 pointer-events-none"></canvas>
+                
+                <!-- Text Tool Input Overlay -->
+                <div id="text-input-container" class="absolute hidden z-30 pointer-events-auto" style="transform-origin: top left;">
+                    <textarea id="canvas-text-input" class="bg-transparent border-2 border-primary/80 border-dashed text-white outline-none font-sans p-2 overflow-hidden resize-none rounded-lg shadow-lg" style="font-size: 24px; min-width: 150px; min-height: 48px;" placeholder="Type here... (Enter to stamp)"></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Draggable Camera Window -->
+    <!-- Default hidden and configured via state -->
+    <div id="camera-window" class="gpu-accelerated absolute z-[60] flex flex-col group transition-all duration-300 bg-darker rounded-2xl border border-primary/50 overflow-hidden cursor-grab active:cursor-grabbing hidden" style="left: auto; top: auto; bottom: 2rem; right: 2rem; width: 280px; height: 157px;">
+        <div id="camera-drag-handle" class="absolute inset-0 z-20 touch-none"></div>
+        
+        <!-- Camera Feeds Container -->
+        <div class="relative w-full h-full z-0 overflow-hidden rounded-inherit pointer-events-none">
+            <!-- Base Video - Added webkit-playsinline to fix iOS bugs -->
+            <video id="webcam" autoplay playsinline webkit-playsinline muted class="gpu-accelerated absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-transform duration-300 rounded-inherit"></video>
+            <!-- Rendered Canvas for Background Removal Output -->
+            <canvas id="bg-removal-canvas" class="gpu-accelerated absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-transform duration-300 rounded-inherit hidden"></canvas>
+        </div>
+        
+        <!-- Camera Controls Overlay (Scrollable, Expanding leftwards) -->
+        <div id="cam-controls-panel" class="absolute top-2 right-2 bottom-2 z-30 flex flex-col items-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1 pb-1">
+            
+            <!-- Draw Over Toggle -->
+            <button id="cam-layer-btn" class="cam-btn-expand shrink-0 p-2 bg-amber-600/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-amber-300/50 overflow-hidden shadow-md" title="Push camera behind drawing canvas">
+                <i class="ph ph-layers-difference text-lg shrink-0"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Draw Over</span>
+            </button>
+
+            <!-- Custom Image BG -->
+            <button id="cam-image-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md mt-2">
+                <i class="ph ph-image text-lg shrink-0" id="cam-image-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Image BG</span>
+            </button>
+            <input type="file" id="vbg-image-upload" accept="image/*" class="hidden">
+
+            <!-- Color BG (Camera solid background) -->
+            <div id="cam-color-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer">
+                <i class="ph ph-palette text-lg shrink-0" id="cam-color-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Color BG</span>
+                <input type="color" id="cam-bgcolor-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#022c22">
+            </div>
+
+            <!-- Board BG Toggle -->
+            <button id="cam-board-bg-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Board as Background">
+                <i class="ph ph-chalkboard text-lg shrink-0" id="cam-board-bg-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Board BG</span>
+            </button>
+
+            <!-- Blur Toggle -->
+            <button id="cam-blur-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+                <i class="ph ph-drop-half text-lg shrink-0" id="cam-blur-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Blur</span>
+            </button>
+
+            <!-- Cutout Toggle -->
+            <button id="cam-cutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Standard AI Cutout">
+                <i class="ph ph-user-focus text-lg shrink-0" id="cam-cutout-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Std Cutout</span>
+            </button>
+            
+            <!-- NEW: PRO Cutout Toggle -->
+            <button id="cam-procutout-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="High-Quality Pro Cutout">
+                <i class="ph-fill ph-user-focus text-lg shrink-0" id="cam-procutout-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Pro Cutout</span>
+            </button>
+
+            <!-- Chroma Key Toggle -->
+            <div id="cam-chroma-wrapper" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Green Screen Chroma Key">
+                <i class="ph ph-projector-screen text-lg shrink-0" id="cam-chroma-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Chroma</span>
+                <input type="color" id="cam-chroma-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value="#00ff00">
+            </div>
+            
+            <!-- Neon Edge Toggle -->
+            <div id="cam-neon-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md relative cursor-pointer" title="Neon Edge Glow">
+                <i class="ph ph-lightning text-lg shrink-0" id="cam-neon-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Neon Glow</span>
+                <input type="color" id="cam-neon-input" class="absolute left-0 top-0 bottom-0 w-[calc(100%-36px)] opacity-0 cursor-pointer z-10" value="#2dd4bf" title="Change Neon Color">
+            </div>
+            
+            <!-- Neon Size Toggle -->
+            <button id="cam-neon-size-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Neon Thickness">
+                <i class="ph ph-circles-three text-lg shrink-0" id="cam-neon-size-icon"></i>
+                <span id="cam-neon-size-text" class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Thin</span>
+            </button>
+
+            <!-- Beauty Toggle -->
+            <button id="cam-beauty-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+                <i class="ph ph-sparkle text-lg shrink-0" id="cam-beauty-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Beauty</span>
+            </button>
+
+            <!-- Shape Toggle -->
+            <button id="cam-shape-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+                <i class="ph ph-bounding-box text-lg shrink-0" id="cam-shape-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Shape</span>
+            </button>
+
+            <!-- Mirror Toggle -->
+            <button id="cam-mirror-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+                <i class="ph ph-arrows-left-right text-lg shrink-0"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Mirror</span>
+            </button>
+            
+            <!-- Quality Toggle -->
+            <button id="cam-quality-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md" title="Toggle Camera Quality">
+                <i class="ph ph-faders text-lg shrink-0" id="cam-quality-icon"></i>
+                <span id="cam-quality-text" class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Eco Mode</span>
+            </button>
+
+            <!-- Fullscreen Toggle -->
+            <button id="cam-fullscreen-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-white flex flex-row-reverse items-center justify-start border border-white/20 overflow-hidden shadow-md">
+                <i class="ph ph-corners-out text-lg shrink-0" id="cam-fullscreen-icon"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Expand</span>
+            </button>
+            
+            <!-- Mobile QR Link -->
+            <button id="cam-qr-btn" class="cam-btn-expand shrink-0 p-2 bg-black/90 rounded-lg text-emerald-400 flex flex-row-reverse items-center justify-start border border-emerald-500/50 overflow-hidden shadow-md mt-auto pt-2">
+                <i class="ph ph-qr-code text-lg shrink-0"></i>
+                <span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300 text-emerald-400">Mobile</span>
+            </button>
+        </div>
+
+        <!-- QR Overlay inside Camera -->
+        <div id="cam-qr-overlay" class="absolute inset-0 z-40 bg-darker/95 flex flex-col items-center justify-center hidden rounded-inherit">
+            <h3 class="text-primary text-[10px] sm:text-xs font-bold mb-2 uppercase tracking-wider text-center px-2">Scan to connect<br>mobile camera</h3>
+            <div id="qrcode-container" class="bg-white p-1.5 sm:p-2 rounded-xl shadow-[0_0_20px_rgba(45,212,191,0.3)]"></div>
+            <button id="cancel-qr-btn" class="mt-3 text-[10px] sm:text-xs bg-white/10 text-gray-300 px-4 py-1.5 rounded-full hover:bg-white/20 transition-colors active:scale-95 border border-white/20">Cancel</button>
+        </div>
+
+        <!-- Auto-hiding name badge -->
+        <div id="cam-name-badge" class="absolute bottom-3 left-3 z-30 bg-black/80 px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center pointer-events-none shrink-0">
+                <i class="ph-fill ph-graduation-cap text-xs text-white"></i>
+            </div>
+            <span class="font-bold text-sm tracking-wide text-white outline-none border-b border-transparent focus:border-white/50 transition-colors whitespace-nowrap pointer-events-auto" contenteditable="true" spellcheck="false" title="Click to edit name">Surendra Baria</span>
+        </div>
+        <div id="cam-status" class="absolute inset-0 flex flex-col items-center justify-center bg-darker z-10 pointer-events-none rounded-inherit">
+            <i class="ph ph-camera-slash text-3xl text-teal-700 mb-2"></i>
+            <span class="text-xs text-teal-600">Camera Off</span>
+        </div>
+        
+        <!-- Resize Handle -->
+        <div id="camera-resize-handle" class="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize z-50 flex items-end justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity touch-none">
+            <i class="ph ph-arrows-out-simple text-primary"></i>
+        </div>
+    </div>
+
+    <!-- Tablet Drawing Pad QR Overlay -->
+    <div id="pad-qr-overlay" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+        <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-[420px] shadow-2xl mx-4 flex flex-col items-center">
+            <h3 class="text-xl font-bold mb-2 text-white flex items-center gap-2"><i class="ph-fill ph-tablet text-emerald-400"></i> Wireless Drawing Pad</h3>
+            <p class="text-sm text-teal-100 mb-5 text-center">Scan this code with your iPad or Tablet to securely link it as a drawing surface for this PC.</p>
+            <div id="pad-qrcode-container" class="bg-white p-3 rounded-xl mb-6"></div>
+            <div class="flex justify-end gap-3 w-full border-t border-white/10 pt-4">
+                <button id="cancel-pad-qr-btn" class="w-full px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Record Setup Modal -->
+    <div id="record-modal" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+        <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-[420px] shadow-2xl mx-4">
+            <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="ph-fill ph-record text-red-500"></i> Smart Class Recording</h3>
+            <p class="text-sm text-teal-100 mb-5">To record your class perfectly, click the button below and select the <b>"This Tab"</b> option in the browser popup.</p>
+            <div class="bg-darker p-3 rounded-lg border border-primary/30 mb-6 flex items-start gap-3">
+                <i class="ph-fill ph-crop text-primary text-xl mt-0.5"></i>
+                <p class="text-xs text-teal-100/80 leading-relaxed"><b>Smart Crop is active!</b> <br>The toolbars and menus will be magically cropped out of the final video, recording <i>only</i> your presentation and camera area.</p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="cancel-record-btn" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Cancel</button>
+                <button id="start-record-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors active:scale-95 flex items-center gap-2">
+                    <i class="ph-bold ph-video-camera"></i> Pick Tab & Record
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- YouTube Stream Key Modal -->
+    <div id="stream-modal" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center">
+        <div class="bg-panel border border-primary/20 rounded-2xl p-6 w-96 shadow-2xl mx-4">
+            <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="ph-fill ph-youtube-logo text-red-500"></i> YouTube Live</h3>
+            <p class="text-sm text-teal-200 mb-4">Enter your YouTube Stream Key. The app will securely route your video through your local bridge directly to YouTube.</p>
+            <input type="password" id="youtube-stream-key" placeholder="Paste Stream Key here (e.g. xxxx-xxxx-xxxx-xxxx)" class="w-full bg-darker border border-primary/30 rounded-lg px-4 py-2 text-white mb-6 focus:outline-none focus:border-primary transition-colors">
+            <div class="flex justify-end gap-3">
+                <button id="cancel-stream-btn" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm transition-colors active:scale-95">Cancel</button>
+                <button id="start-stream-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors active:scale-95 flex items-center gap-2">
+                    <i class="ph-bold ph-broadcast"></i> Go Live
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Suppress expected Canvas WebSocket security errors for PeerJS preview iframe environment
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('WebSocket connection') && e.message.includes('not allowed in Canvas')) {
+                e.preventDefault(); 
+            }
+        });
+
+        // Device Capability Detection for Ultra Low End Optimization
+        const isLowEnd = (navigator.deviceMemory || 4) <= 2 || (navigator.hardwareConcurrency || 4) <= 2;
+        
+        // Dynamically cap Canvas DPI to 1 on low-end devices to save 400% memory and fix lag
+        const CANVAS_DPR = isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+
+        const initPolling = setInterval(() => {
+            if (typeof pdfjsLib !== 'undefined' && typeof Peer !== 'undefined') {
+                clearInterval(initPolling);
+                // Explicitly set the PDF.js worker to prevent loading delays or silent background failures
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                startApplication();
+            }
+        }, 100);
+
+        function startApplication() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const syncCode = urlParams.get('sync');
+            const padCode = urlParams.get('pad');
+
+            // ==========================================
+            // MODE: MOBILE DRAWING PAD (Client)
+            // ==========================================
+            if (padCode) {
+                document.body.innerHTML = `
+                    <div class="h-screen w-screen bg-darker flex flex-col font-sans select-none overflow-hidden relative">
+                        <div class="h-14 bg-panel border-b border-primary/20 flex items-center justify-between px-4 z-50 shadow-md">
+                            <div class="text-teal-200 font-bold flex items-center gap-2"><i class="ph ph-tablet text-xl"></i> Drawing Pad Connected</div>
+                            <div class="flex items-center gap-3">
+                                 <input type="color" id="pad-color" value="#ffffff" class="w-8 h-8 rounded-full cursor-pointer border-2 border-white transition-all bg-transparent">
+                                 <input type="range" id="pad-size" min="1" max="50" value="4" class="w-24 accent-primary">
+                                 <button id="pad-eraser" class="text-teal-200 p-2 hover:bg-white/10 rounded-lg transition-colors border border-transparent"><i class="ph ph-eraser text-xl"></i></button>
+                                 <button id="pad-clear" class="text-red-400 p-2 hover:bg-white/10 rounded-lg transition-colors"><i class="ph ph-trash text-xl"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex-1 relative w-full h-full p-2 touch-none">
+                             <canvas id="pad-canvas" class="w-full h-full bg-[#022c22] rounded-xl touch-none cursor-crosshair"></canvas>
+                        </div>
+                    </div>
+                `;
+
+                const canvas = document.getElementById('pad-canvas');
+                const ctx = canvas.getContext('2d');
+                const colorInput = document.getElementById('pad-color');
+                const sizeInput = document.getElementById('pad-size');
+                const eraserBtn = document.getElementById('pad-eraser');
+                
+                let isEraser = false; let isDrawing = false;
+                
+                const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+                window.addEventListener('resize', resize); resize();
+
+                let conn = null;
+                try {
+                    const peer = new Peer();
+                    peer.on('open', () => { conn = peer.connect('sblive-host-' + padCode); });
+                    peer.on('error', err => console.warn("PeerJS error:", err));
+                } catch (e) {
+                    console.warn("PeerJS connection blocked in preview.", e);
+                }
+
+                eraserBtn.addEventListener('click', () => { 
+                    isEraser = !isEraser; 
+                    if(isEraser) eraserBtn.classList.add('bg-white/20', 'border-primary/50'); 
+                    else eraserBtn.classList.remove('bg-white/20', 'border-primary/50');
+                });
+                
+                document.getElementById('pad-clear').addEventListener('click', () => { ctx.clearRect(0,0,canvas.width,canvas.height); if(conn) conn.send({type: 'clear'}); });
+
+                const getNormalizedPos = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX; 
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    return { nx: (clientX - rect.left) / rect.width, ny: (clientY - rect.top) / rect.height };
+                };
+
+                let lastX = 0, lastY = 0;
+                const drawStart = (e) => {
+                    e.preventDefault(); isDrawing = true; const pos = getNormalizedPos(e); lastX = pos.nx * canvas.width; lastY = pos.ny * canvas.height;
+                    ctx.beginPath(); ctx.arc(lastX, lastY, sizeInput.value / 2, 0, Math.PI*2); ctx.fillStyle = isEraser ? '#022c22' : colorInput.value; ctx.fill();
+                    if(conn) conn.send({type: 'draw', action: 'start', nx: pos.nx, ny: pos.ny, tool: isEraser ? 'eraser' : 'pen', color: colorInput.value, size: parseInt(sizeInput.value)});
+                };
+                const drawMove = (e) => {
+                    if(!isDrawing) return; e.preventDefault(); const pos = getNormalizedPos(e); const currX = pos.nx * canvas.width; const currY = pos.ny * canvas.height;
+                    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(currX, currY); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = sizeInput.value;
+                    ctx.strokeStyle = isEraser ? '#022c22' : colorInput.value; ctx.stroke(); lastX = currX; lastY = currY;
+                    if(conn) conn.send({type: 'draw', action: 'move', nx: pos.nx, ny: pos.ny, tool: isEraser ? 'eraser' : 'pen', color: colorInput.value, size: parseInt(sizeInput.value)});
+                };
+                const drawEnd = (e) => { if(isDrawing) { isDrawing = false; if(conn) conn.send({type: 'draw', action: 'end'}); } };
+
+                canvas.addEventListener('touchstart', drawStart, {passive: false}); canvas.addEventListener('touchmove', drawMove, {passive: false}); canvas.addEventListener('touchend', drawEnd);
+                canvas.addEventListener('mousedown', drawStart); window.addEventListener('mousemove', drawMove); window.addEventListener('mouseup', drawEnd);
+                return;
+            }
+
+            // ==========================================
+            // MODE: MOBILE CAMERA SENDER (Client)
+            // ==========================================
+            if (syncCode) {
+                document.body.innerHTML = `
+                    <div class="h-screen w-screen bg-black flex flex-col items-center justify-center text-white relative font-sans overflow-hidden">
+                        <video id="mobile-sender-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-contain z-0"></video>
+                        <div id="mobile-status" class="z-10 absolute top-8 bg-black/80 px-6 py-3 rounded-full text-sm font-medium flex items-center gap-3 shadow-xl border border-white/10 transition-colors">
+                            <i class="ph ph-spinner animate-spin text-primary text-xl"></i> 
+                            <span>Connecting to Class...</span>
+                        </div>
+                        <button id="mobile-flip" class="absolute top-8 right-6 z-10 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full shadow-lg transition-transform active:scale-95 border border-white/10">
+                            <i class="ph ph-camera-rotate text-2xl"></i>
+                        </button>
+                        <button id="mobile-stop" class="absolute bottom-12 z-10 bg-red-500/90 hover:bg-red-600 text-white px-8 py-4 rounded-full font-bold shadow-xl flex items-center gap-2 transition-transform active:scale-95 border border-red-400/50">
+                            <i class="ph ph-x-circle text-2xl"></i> Stop Camera
+                        </button>
+                    </div>
+                `;
+
+                const videoEl = document.getElementById('mobile-sender-video');
+                const statusEl = document.getElementById('mobile-status');
+                let currentFacingMode = 'environment'; let localStream = null; let peer = null;
+
+                const startMobileCam = (facingMode) => {
+                    if (localStream) localStream.getTracks().forEach(track => track.stop());
+                    
+                    let constraints = { video: { facingMode: facingMode }, audio: false };
+                    if (isLowEnd) constraints.video = { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { max: 15 } };
+                    
+                    navigator.mediaDevices.getUserMedia(constraints)
+                    .then(stream => {
+                        localStream = stream; videoEl.srcObject = stream;
+                        if (window.mobileCall && window.mobileCall.peerConnection) {
+                            const sender = window.mobileCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                            if (sender) sender.replaceTrack(stream.getVideoTracks()[0]);
+                        }
+                    }).catch(err => {
+                        statusEl.innerHTML = '<i class="ph ph-warning text-red-400 text-xl"></i> <span>Camera Denied</span>';
+                        statusEl.classList.replace('border-white/10', 'border-red-500/50');
+                    });
+                };
+
+                startMobileCam(currentFacingMode);
+                window.addEventListener('orientationchange', () => setTimeout(() => startMobileCam(currentFacingMode), 300));
+
+                try {
+                    peer = new Peer();
+                    peer.on('open', (id) => {
+                        setTimeout(() => {
+                            if (localStream) {
+                                window.mobileCall = peer.call('sblive-host-' + syncCode, localStream);
+                                statusEl.innerHTML = '<i class="ph ph-broadcast text-primary text-xl"></i> <span class="text-primary">Live: Broadcasting</span>';
+                                statusEl.classList.replace('border-white/10', 'border-primary/50');
+                            }
+                        }, 1000);
+                    });
+                    peer.on('error', (err) => {
+                        statusEl.innerHTML = '<i class="ph ph-warning text-red-400 text-xl"></i> <span class="text-red-400">Host Not Found</span>';
+                        statusEl.classList.replace('border-white/10', 'border-red-500/50');
+                    });
+                } catch (err) {
+                    statusEl.innerHTML = '<i class="ph ph-warning text-red-400 text-xl"></i> <span class="text-red-400">Connection Blocked</span>';
+                    statusEl.classList.replace('border-white/10', 'border-red-500/50');
+                }
+
+                document.getElementById('mobile-stop').addEventListener('click', () => {
+                    if(localStream) localStream.getTracks().forEach(t => t.stop());
+                    if(peer) peer.destroy();
+                    window.location.href = window.location.pathname; 
+                });
+                document.getElementById('mobile-flip').addEventListener('click', () => {
+                    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                    startMobileCam(currentFacingMode);
+                    videoEl.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+                });
+                return;
+            }
+
+            // ==========================================
+            // MAIN DESKTOP/IPAD APP (Host)
+            // ==========================================
+
+            const state = {
+                pdfDoc: null, baseScale: 1.5, zoomLevel: 1.0, panX: 0, panY: 0,
+                isPanning: false, isSpacePressed: false, tempToolBeforePan: null, panStartX: 0, panStartY: 0,
+
+                // Slide & Map State Engine
+                pageMap: [], currentMapIndex: 0, drawCache: {}, pageNumPending: null,
+
+                isWhiteboard: true, boardColor: '#022c22', boardPattern: 'solid', boardBgImage: null,
+                
+                isDrawing: false, didDraw: false, currentTool: 'pen', brushType: 'solid', currentColor: '#ffffff', snapshotData: null, textPos: {x: 0, y: 0},
+                toolSizes: { pen: 4, laser: 8, highlight: 16, eraser: 30, pan: 4, text: 6, line: 4, rect: 4, circle: 4, spotlight: 15 },
+                points: [], laserPoints: [], laserLoopRunning: false, undoStack: [], redoStack: [], saveTimer: null,
+
+                isToolkitOpen: false, isCamBehind: false,
+
+                // Camera Engine Config
+                isCamHidden: true, camShape: 0, camQuality: 0, isFullscreenCam: false, isDiscussionMode: false, isMirrored: true, isBeautyMode: false, isNeonMode: false,
+                neonColor: '#2dd4bf', neonSizeIdx: 0, camPreFullscreenPos: { left: 'auto', top: 'auto', bottom: '2rem', right: '2rem' }, camCustomSize: null,
+
+                bgMode: 0, cutoutMode: 'ai', chromaColor: '#00ff00', chromaCanvas: document.createElement('canvas'), 
+                camBgColor: '#022c22', selfieSegmentation: null, isBgModelLoaded: false, virtualBgImageEl: null,
+                
+                isScreenSharing: false, isRecording: false, isStreaming: false,
+                mediaRecorder: null, streamRecorder: null, recordedChunks: [], webSocket: null, activeMicStream: null,
+                
+                // Remote Pad sync state
+                remoteLastX: 0, remoteLastY: 0
+            };
+
+            const els = {
+                topHeader: document.getElementById('top-header'),
+                floatingQuickAccess: document.getElementById('floating-quick-access'),
+                floatingToolkitBtn: document.getElementById('floating-toolkit-btn'),
+                floatingUndoBtn: document.getElementById('floating-undo-btn'),
+                floatingRedoBtn: document.getElementById('floating-redo-btn'),
+                floatingClearBtn: document.getElementById('floating-clear-btn'),
+                floatingZoomInBtn: document.getElementById('floating-zoom-in-btn'),
+                floatingZoomOutBtn: document.getElementById('floating-zoom-out-btn'),
+                floatingZoomText: document.getElementById('floating-zoom-text'),
+                
+                toggleToolkitBtn: document.getElementById('toggle-toolkit-btn'),
+                toolkitPanel: document.getElementById('toolkit-panel'),
+                closeToolkitBtn: document.getElementById('close-toolkit-btn'),
+
+                appFullscreenBtn: document.getElementById('app-fullscreen-btn'),
+                appFullscreenIcon: document.getElementById('app-fullscreen-icon'),
+                upload: document.getElementById('pdf-upload'),
+                pdfCanvas: document.getElementById('pdf-canvas'),
+                drawCanvas: document.getElementById('draw-canvas'),
+                laserCanvas: document.getElementById('laser-canvas'),
+                screenVideo: document.getElementById('screen-video'),
+                container: document.getElementById('canvases-container'),
+                wrapper: document.getElementById('canvas-wrapper'),
+                instruction: document.getElementById('instruction-overlay'),
+                textInputContainer: document.getElementById('text-input-container'),
+                textInput: document.getElementById('canvas-text-input'),
+
+                slideControls: document.getElementById('slide-controls'),
+                slideControlsInner: document.getElementById('slide-controls-inner'),
+                prevBtn: document.getElementById('prev-page'),
+                nextBtn: document.getElementById('next-page'),
+                addSlideBtn: document.getElementById('add-slide-btn'),
+                pageNum: document.getElementById('page-num'),
+                pageCount: document.getElementById('page-count'),
+                
+                toggleWhiteboard: document.getElementById('toggle-whiteboard-btn'),
+                toggleDiscussionBtn: document.getElementById('toggle-discussion-btn'),
+                toggleScreenBtn: document.getElementById('toggle-screen-btn'),
+                recordBtn: document.getElementById('record-btn'),
+                recordIcon: document.getElementById('record-icon'),
+                recordText: document.getElementById('record-text'),
+                streamBtn: document.getElementById('stream-btn'),
+                streamIcon: document.getElementById('stream-icon'),
+                streamText: document.getElementById('stream-text'),
+                zoomInBtn: document.getElementById('zoom-in-btn'),
+                zoomOutBtn: document.getElementById('zoom-out-btn'),
+                zoomInput: document.getElementById('zoom-input'),
+                
+                toolBtns: document.querySelectorAll('.tool-btn'),
+                btnUndo: document.getElementById('tool-undo'),
+                btnRedo: document.getElementById('tool-redo'),
+                btnClear: document.getElementById('tool-clear'),
+                
+                colorBtns: document.querySelectorAll('.color-btn'),
+                customColorInput: document.getElementById('custom-color-input'),
+                customColorWrapper: document.getElementById('custom-color-wrapper'),
+                sizeSlider: document.getElementById('size-slider'),
+                sliderLabel: document.getElementById('slider-label'),
+                
+                boardColorInput: document.getElementById('board-color-input'),
+                boardColorDisplay: document.getElementById('board-color-display'),
+                patternBtns: document.querySelectorAll('.pattern-btn'),
+                boardBgUpload: document.getElementById('board-bg-upload'),
+                boardBgUploadLabel: document.getElementById('board-bg-upload-label'),
+
+                camWindow: document.getElementById('camera-window'),
+                video: document.getElementById('webcam'),
+                bgCanvas: document.getElementById('bg-removal-canvas'),
+                camStatus: document.getElementById('cam-status'),
+                toggleCamera: document.getElementById('toggle-camera-btn'),
+                cameraIcon: document.getElementById('camera-icon'),
+                
+                camLayerBtn: document.getElementById('cam-layer-btn'),
+                toolkitCamLayerBtn: document.getElementById('toolkit-cam-layer-btn'),
+
+                camShapeBtn: document.getElementById('cam-shape-btn'),
+                camShapeIcon: document.getElementById('cam-shape-icon'),
+                camFullscreenBtn: document.getElementById('cam-fullscreen-btn'),
+                camFullscreenIcon: document.getElementById('cam-fullscreen-icon'),
+                camMirrorBtn: document.getElementById('cam-mirror-btn'),
+                camBeautyBtn: document.getElementById('cam-beauty-btn'),
+                camBeautyIcon: document.getElementById('cam-beauty-icon'),
+                camNeonBtn: document.getElementById('cam-neon-btn'),
+                camNeonIcon: document.getElementById('cam-neon-icon'),
+                camNeonInput: document.getElementById('cam-neon-input'),
+                camNeonSizeBtn: document.getElementById('cam-neon-size-btn'),
+                camNeonSizeText: document.getElementById('cam-neon-size-text'),
+                camNeonSizeIcon: document.getElementById('cam-neon-size-icon'),
+                camQualityBtn: document.getElementById('cam-quality-btn'),
+                camQualityIcon: document.getElementById('cam-quality-icon'),
+                camQualityText: document.getElementById('cam-quality-text'),
+                
+                camCutoutBtn: document.getElementById('cam-cutout-btn'),
+                camCutoutIcon: document.getElementById('cam-cutout-icon'),
+                camProCutoutBtn: document.getElementById('cam-procutout-btn'),
+                camProCutoutIcon: document.getElementById('cam-procutout-icon'),
+                camChromaWrapper: document.getElementById('cam-chroma-wrapper'),
+                camChromaIcon: document.getElementById('cam-chroma-icon'),
+                camChromaInput: document.getElementById('cam-chroma-input'),
+                camBlurBtn: document.getElementById('cam-blur-btn'),
+                camBlurIcon: document.getElementById('cam-blur-icon'),
+                camImageBtn: document.getElementById('cam-image-btn'),
+                camImageIcon: document.getElementById('cam-image-icon'),
+                vbgImageUpload: document.getElementById('vbg-image-upload'),
+                camColorWrapper: document.getElementById('cam-color-wrapper'),
+                camColorIcon: document.getElementById('cam-color-icon'),
+                camColorInput: document.getElementById('cam-bgcolor-input'),
+                camBoardBgBtn: document.getElementById('cam-board-bg-btn'),
+                camBoardBgIcon: document.getElementById('cam-board-bg-icon'),
+
+                camNameBadge: document.getElementById('cam-name-badge'),
+                camDragHandle: document.getElementById('camera-drag-handle'),
+                camResizeHandle: document.getElementById('camera-resize-handle'),
+                
+                camQrBtn: document.getElementById('cam-qr-btn'),
+                camQrOverlay: document.getElementById('cam-qr-overlay'),
+                qrcodeContainer: document.getElementById('qrcode-container'),
+                cancelQrBtn: document.getElementById('cancel-qr-btn'),
+                
+                toolkitLinkPadBtn: document.getElementById('toolkit-link-pad-btn'),
+                padQrOverlay: document.getElementById('pad-qr-overlay'),
+                padQrcodeContainer: document.getElementById('pad-qrcode-container'),
+                cancelPadQrBtn: document.getElementById('cancel-pad-qr-btn'),
+
+                streamModal: document.getElementById('stream-modal'),
+                streamKeyInput: document.getElementById('youtube-stream-key'),
+                cancelStreamBtn: document.getElementById('cancel-stream-btn'),
+                startStreamBtn: document.getElementById('start-stream-btn'),
+                recordModal: document.getElementById('record-modal'),
+                cancelRecordBtn: document.getElementById('cancel-record-btn'),
+                startRecordBtn: document.getElementById('start-record-btn'),
+            };
+
+            // Image Smoothing Disabled for slightly higher speed on low-end
+            const pdfCtx = els.pdfCanvas.getContext('2d', { alpha: false }); 
+            const drawCtx = els.drawCanvas.getContext('2d', { desynchronized: true });
+            const bgCtx = els.bgCanvas.getContext('2d', { willReadFrequently: true }); 
+            if (isLowEnd) { pdfCtx.imageSmoothingEnabled = false; drawCtx.imageSmoothingEnabled = false; }
+
+            let peer = null;
+
+            // --- UI Setup: Toolkit Sidebar & Menus ---
+            els.toggleToolkitBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); state.isToolkitOpen = !state.isToolkitOpen;
+                if(state.isToolkitOpen) els.toolkitPanel.classList.remove('-translate-x-full');
+                else els.toolkitPanel.classList.add('-translate-x-full');
+            });
+            els.floatingToolkitBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); state.isToolkitOpen = !state.isToolkitOpen;
+                if(state.isToolkitOpen) els.toolkitPanel.classList.remove('-translate-x-full');
+                else els.toolkitPanel.classList.add('-translate-x-full');
+            });
+            els.closeToolkitBtn.addEventListener('click', () => { state.isToolkitOpen = false; els.toolkitPanel.classList.add('-translate-x-full'); });
+            
+            // Universal external click handler (Fix for Pentab/Touch screens not closing toolkit)
+            const closeToolkitIfOutside = (e) => {
+                if (state.isToolkitOpen && !els.toolkitPanel.contains(e.target) && !els.toggleToolkitBtn.contains(e.target) && !els.floatingQuickAccess.contains(e.target) && !e.target.closest('.color-btn')) {
+                    state.isToolkitOpen = false; els.toolkitPanel.classList.add('-translate-x-full');
+                }
+            };
+            document.addEventListener('pointerdown', closeToolkitIfOutside, {passive: true}); // Catches mouse, touch, and pen flawlessly
+            document.addEventListener('click', closeToolkitIfOutside); // Fallback
+
+            // --- UI Setup: PDF Controls Visibility ---
+            const togglePdfControls = (show) => {
+                if (show) {
+                    els.slideControls.classList.remove('hidden');
+                    setTimeout(() => els.slideControls.classList.remove('opacity-0', 'pointer-events-none'), 10);
+                } else {
+                    els.slideControls.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => els.slideControls.classList.add('hidden'), 300);
+                }
+            };
+
+            // --- True Fullscreen Feature ---
+            els.appFullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err => console.error(err.message));
+                else if (document.exitFullscreen) document.exitFullscreen();
+            });
+
+            document.addEventListener('fullscreenchange', () => {
+                if (document.fullscreenElement) {
+                    els.appFullscreenIcon.className = 'ph ph-corners-in text-lg';
+                    els.appFullscreenBtn.classList.replace('bg-white/5', 'bg-primary/20');
+                    els.appFullscreenBtn.classList.replace('text-teal-100', 'text-primary');
+                    els.topHeader.classList.add('hidden'); 
+                    els.floatingQuickAccess.classList.remove('hidden');
+                    
+                    // Push slide controls further top-right in fullscreen and fade them out slightly so slides are visible
+                    els.slideControls.classList.remove('top-20', 'sm:top-24');
+                    els.slideControls.classList.add('top-4', 'sm:top-4');
+                    els.slideControlsInner.classList.add('opacity-40', 'hover:opacity-100');
+                } else {
+                    els.appFullscreenIcon.className = 'ph ph-corners-out text-lg';
+                    els.appFullscreenBtn.classList.replace('bg-primary/20', 'bg-white/5');
+                    els.appFullscreenBtn.classList.replace('text-primary', 'text-teal-100');
+                    els.topHeader.classList.remove('hidden'); 
+                    els.floatingQuickAccess.classList.add('hidden');
+                    
+                    // Reset slide controls down a bit so they don't cover toolkit menus
+                    els.slideControls.classList.remove('top-4', 'sm:top-4');
+                    els.slideControls.classList.add('top-20', 'sm:top-24');
+                    els.slideControlsInner.classList.remove('opacity-40', 'hover:opacity-100');
+                }
+            });
+
+            // --- Zooming & Panning Logic ---
+            const applyTransform = () => {
+                els.container.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoomLevel})`;
+                els.zoomInput.value = `${Math.round(state.zoomLevel * 100)}%`;
+                if(els.floatingZoomText) els.floatingZoomText.innerText = `${Math.round(state.zoomLevel * 100)}%`;
+            };
+
+            const resetTransform = () => { state.zoomLevel = 1.0; state.panX = 0; state.panY = 0; applyTransform(); };
+
+            const handleZoomIn = () => { state.zoomLevel = Math.min(4.0, state.zoomLevel + 0.2); applyTransform(); };
+            const handleZoomOut = () => { state.zoomLevel = Math.max(0.4, state.zoomLevel - 0.2); applyTransform(); };
+
+            if(els.zoomInBtn) els.zoomInBtn.addEventListener('click', handleZoomIn);
+            if(els.zoomOutBtn) els.zoomOutBtn.addEventListener('click', handleZoomOut);
+            if(els.floatingZoomInBtn) els.floatingZoomInBtn.addEventListener('click', handleZoomIn);
+            if(els.floatingZoomOutBtn) els.floatingZoomOutBtn.addEventListener('click', handleZoomOut);
+
+            if(els.zoomInput) {
+                els.zoomInput.addEventListener('dblclick', resetTransform);
+                els.zoomInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); let val = parseInt(els.zoomInput.value.replace('%', '')); if (!isNaN(val)) { state.zoomLevel = Math.max(0.4, Math.min(4.0, val / 100)); applyTransform(); } els.zoomInput.blur(); }
+                });
+                els.zoomInput.addEventListener('blur', () => els.zoomInput.value = `${Math.round(state.zoomLevel * 100)}%`);
+            }
+
+            // --- Undo/Redo Engine ---
+            const updateUndoRedoUI = () => {
+                const canUndo = state.undoStack.length > 1;
+                const canRedo = state.redoStack.length > 0;
+                
+                els.btnUndo.style.opacity = canUndo ? '1' : '0.4'; els.btnUndo.style.pointerEvents = canUndo ? 'auto' : 'none';
+                els.btnRedo.style.opacity = canRedo ? '1' : '0.4'; els.btnRedo.style.pointerEvents = canRedo ? 'auto' : 'none';
+
+                if (els.floatingUndoBtn) {
+                    els.floatingUndoBtn.style.opacity = canUndo ? '1' : '0.4'; els.floatingUndoBtn.style.pointerEvents = canUndo ? 'auto' : 'none';
+                }
+                if (els.floatingRedoBtn) {
+                    els.floatingRedoBtn.style.opacity = canRedo ? '1' : '0.4'; els.floatingRedoBtn.style.pointerEvents = canRedo ? 'auto' : 'none';
+                }
+            };
+
+            const saveState = () => {
+                if (state.undoStack.length >= 15) state.undoStack.shift(); 
+                state.undoStack.push(els.drawCanvas.toDataURL()); state.redoStack = []; updateUndoRedoUI();
+            };
+
+            const loadCanvasState = (dataUrl) => {
+                if(!dataUrl) return; const img = new Image();
+                img.onload = () => { drawCtx.save(); drawCtx.resetTransform(); drawCtx.clearRect(0, 0, els.drawCanvas.width, els.drawCanvas.height); drawCtx.drawImage(img, 0, 0, els.drawCanvas.width, els.drawCanvas.height); drawCtx.restore(); };
+                img.src = dataUrl;
+            };
+
+            const undo = () => { if (state.undoStack.length > 1) { state.redoStack.push(state.undoStack.pop()); loadCanvasState(state.undoStack[state.undoStack.length - 1]); updateUndoRedoUI(); } };
+            const redo = () => { if (state.redoStack.length > 0) { const nextState = state.redoStack.pop(); state.undoStack.push(nextState); loadCanvasState(nextState); updateUndoRedoUI(); } };
+            
+            updateUndoRedoUI();
+            if(els.floatingUndoBtn) els.floatingUndoBtn.addEventListener('click', undo);
+            if(els.floatingRedoBtn) els.floatingRedoBtn.addEventListener('click', redo);
+            if(els.floatingClearBtn) els.floatingClearBtn.addEventListener('click', () => clearCanvas(true));
+
+            // --- Slide Map & PDF Handling Engine ---
+            const syncCanvasSizes = (width, height) => {
+                [els.pdfCanvas, els.drawCanvas, els.laserCanvas].forEach(c => {
+                    if(!c) return; c.width = width * CANVAS_DPR; c.height = height * CANVAS_DPR; c.style.width = `${width}px`; c.style.height = `${height}px`;
+                });
+                drawCtx.resetTransform(); drawCtx.scale(CANVAS_DPR, CANVAS_DPR);
+                const laserCtx = els.laserCanvas.getContext('2d'); laserCtx.resetTransform(); laserCtx.scale(CANVAS_DPR, CANVAS_DPR);
+            };
+
+            const saveCurrentPageDrawing = () => { if(state.pageMap.length > 0) state.drawCache[state.currentMapIndex] = els.drawCanvas.toDataURL(); };
+            
+            const loadCurrentPageDrawing = () => {
+                state.undoStack = []; state.redoStack = []; clearCanvas(false);
+                if (state.drawCache[state.currentMapIndex]) { loadCanvasState(state.drawCache[state.currentMapIndex]); state.undoStack.push(state.drawCache[state.currentMapIndex]); updateUndoRedoUI(); } 
+                else { setTimeout(() => saveState(), 50); }
+            };
+
+            const updatePaginationButtons = () => { els.prevBtn.disabled = state.currentMapIndex <= 0; els.nextBtn.disabled = state.currentMapIndex >= state.pageMap.length - 1; };
+
+            const renderMapPage = () => {
+                if (state.pageMap.length === 0) return;
+                const pageObj = state.pageMap[state.currentMapIndex];
+                els.pageNum.textContent = state.currentMapIndex + 1; els.pageCount.textContent = state.pageMap.length; updatePaginationButtons();
+
+                if (pageObj.type === 'blank') {
+                    state.isWhiteboard = true; updateWhiteboardBtnUI(); els.pdfCanvas.classList.remove('hidden'); drawWhiteboardBackground(); loadCurrentPageDrawing();
+                } else {
+                    state.isWhiteboard = false; updateWhiteboardBtnUI(); state.pageIsRendering = true;
+                    // Fix: Explicitly ensure the PDF canvas shows up when re-rendering
+                    els.pdfCanvas.classList.remove('hidden'); 
+                    
+                    state.pdfDoc.getPage(pageObj.num).then(page => {
+                        const isMobile = window.innerWidth <= 768; const containerWidth = els.wrapper.clientWidth * (isMobile ? 0.98 : 0.85); 
+                        const unscaledViewport = page.getViewport({ scale: 1.0 }); state.baseScale = containerWidth / unscaledViewport.width;
+                        const viewportCss = page.getViewport({ scale: state.baseScale }); const renderViewport = page.getViewport({ scale: state.baseScale * CANVAS_DPR });
+
+                        syncCanvasSizes(viewportCss.width, viewportCss.height);
+                        pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+
+                        page.render({ canvasContext: pdfCtx, transform: [1, 0, 0, 1, 0, 0], viewport: renderViewport }).promise.then(() => {
+                            state.pageIsRendering = false; loadCurrentPageDrawing();
+                            if (state.pageNumPending !== null) { state.currentMapIndex = state.pageNumPending; state.pageNumPending = null; renderMapPage(); }
+                        });
+                    });
+                }
+            };
+
+            const queueRenderPage = (index) => { state.pageIsRendering ? state.pageNumPending = index : (state.currentMapIndex = index, renderMapPage()); };
+
+            els.upload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    const fileReader = new FileReader();
+                    fileReader.onload = function() {
+                        pdfjsLib.getDocument(new Uint8Array(this.result)).promise.then(pdfDoc_ => {
+                            state.pdfDoc = pdfDoc_; state.pageMap = Array.from({length: state.pdfDoc.numPages}, (_, i) => ({ type: 'pdf', num: i + 1 }));
+                            state.currentMapIndex = 0; state.drawCache = {};
+                            els.instruction.classList.add('hidden'); els.container.classList.remove('hidden');
+                            togglePdfControls(true); resetTransform(); renderMapPage();
+                        }).catch(err => {
+                            console.error("Failed to load PDF:", err);
+                        });
+                    };
+                    fileReader.readAsArrayBuffer(file);
+                }
+                // Reset file input so users can re-load the same exact file successfully
+                e.target.value = ''; 
+            });
+
+            els.prevBtn.addEventListener('click', () => { if (state.currentMapIndex > 0) { saveCurrentPageDrawing(); queueRenderPage(state.currentMapIndex - 1); } });
+            els.nextBtn.addEventListener('click', () => { if (state.currentMapIndex < state.pageMap.length - 1) { saveCurrentPageDrawing(); queueRenderPage(state.currentMapIndex + 1); } });
+            els.addSlideBtn.addEventListener('click', () => {
+                if (state.pageMap.length === 0) return; saveCurrentPageDrawing();
+                state.pageMap.splice(state.currentMapIndex + 1, 0, { type: 'blank', id: Date.now() }); state.currentMapIndex++; renderMapPage();
+            });
+
+            // --- Board Style & Pattern Logic ---
+            function isLightColor(color) {
+                let r, g, b;
+                if (color.match(/^rgb/)) { const parts = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/); r = parts[1]; g = parts[2]; b = parts[3]; } 
+                else { const hex = color.slice(1); const bigint = parseInt(hex.length === 3 ? hex.split('').map(x => x+x).join('') : hex, 16); r = (bigint >> 16) & 255; g = (bigint >> 8) & 255; b = bigint & 255; }
+                return Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b)) > 127.5;
+            }
+
+            const drawWhiteboardBackground = () => {
+                const isMobile = window.innerWidth <= 768; syncCanvasSizes(els.wrapper.clientWidth * (isMobile ? 0.98 : 0.9), els.wrapper.clientHeight * (isMobile ? 0.98 : 0.9));
+                pdfCtx.resetTransform(); pdfCtx.fillStyle = state.boardColor; pdfCtx.fillRect(0, 0, els.pdfCanvas.width, els.pdfCanvas.height);
+
+                const w = els.pdfCanvas.width; const h = els.pdfCanvas.height; const patternColor = isLightColor(state.boardColor) ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
+
+                if (state.boardPattern === 'lines') {
+                    pdfCtx.strokeStyle = patternColor; pdfCtx.lineWidth = 1 * CANVAS_DPR; pdfCtx.beginPath();
+                    for (let y = 50 * CANVAS_DPR; y < h; y += 50 * CANVAS_DPR) { pdfCtx.moveTo(0, y); pdfCtx.lineTo(w, y); } pdfCtx.stroke();
+                } else if (state.boardPattern === 'dots') {
+                    pdfCtx.fillStyle = patternColor; const spacing = 50 * CANVAS_DPR; const radius = 2 * CANVAS_DPR;
+                    for (let x = spacing; x < w; x += spacing) { for (let y = spacing; y < h; y += spacing) { pdfCtx.beginPath(); pdfCtx.arc(x, y, radius, 0, Math.PI*2); pdfCtx.fill(); } }
+                } else if (state.boardPattern === 'image' && state.boardBgImage) {
+                    const img = state.boardBgImage; const imgAspect = img.width / img.height; const canvasAspect = w / h;
+                    let drawW = w, drawH = h, offsetX = 0, offsetY = 0;
+                    if (imgAspect > canvasAspect) { drawW = h * imgAspect; offsetX = (w - drawW) / 2; } else { drawH = w / imgAspect; offsetY = (h - drawH) / 2; }
+                    pdfCtx.drawImage(img, offsetX, offsetY, drawW, drawH);
+                }
+            };
+
+            els.boardColorInput.addEventListener('input', (e) => { state.boardColor = e.target.value; els.boardColorDisplay.style.backgroundColor = state.boardColor; if (state.isWhiteboard) drawWhiteboardBackground(); else if (state.pdfDoc) renderMapPage(); });
+            els.patternBtns.forEach(btn => { if(btn.id === 'board-bg-upload-label') return; btn.addEventListener('click', () => { els.patternBtns.forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); state.boardPattern = btn.dataset.pattern; if(state.isWhiteboard) drawWhiteboardBackground(); }); });
+            els.boardBgUpload.addEventListener('change', (e) => { const file = e.target.files[0]; if (file && file.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { state.boardBgImage = img; state.boardPattern = 'image'; els.patternBtns.forEach(b => b.classList.remove('selected')); els.boardBgUploadLabel.classList.add('selected'); if(state.isWhiteboard) drawWhiteboardBackground(); }; img.src = event.target.result; }; reader.readAsDataURL(file); } });
+            els.boardColorDisplay.style.backgroundColor = state.boardColor; els.pdfCanvas.style.backgroundColor = state.boardColor;
+
+            // --- Screen Share ---
+            let screenStream = null;
+            const adjustScreenShareSize = () => {
+                if (!state.isScreenSharing || !els.screenVideo.videoWidth) return;
+                const isMobile = window.innerWidth <= 768; const containerWidth = els.wrapper.clientWidth * (isMobile ? 0.98 : 0.9); const containerHeight = els.wrapper.clientHeight * (isMobile ? 0.98 : 0.9);
+                const aspect = els.screenVideo.videoWidth / els.screenVideo.videoHeight; let w = containerWidth; let h = w / aspect;
+                if (h > containerHeight) { h = containerHeight; w = h * aspect; }
+                els.screenVideo.style.width = `${w}px`; els.screenVideo.style.height = `${h}px`; syncCanvasSizes(w, h);
+            };
+
+            els.toggleScreenBtn.addEventListener('click', async () => {
+                if (state.isScreenSharing) { stopScreenShare(); return; }
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" }, audio: true });
+                    state.isScreenSharing = true; els.toggleScreenBtn.classList.replace('bg-white/5', 'bg-accent'); els.toggleScreenBtn.classList.add('text-white');
+                    els.toggleScreenBtn.innerHTML = `<i class="ph ph-screencast text-lg"></i><span class="hidden md:inline">Stop Share</span>`;
+                    els.pdfCanvas.classList.add('hidden'); els.instruction.classList.add('hidden'); els.container.classList.remove('hidden');
+                    togglePdfControls(false); els.screenVideo.srcObject = screenStream; els.screenVideo.classList.remove('hidden');
+                    screenStream.getVideoTracks()[0].onended = () => stopScreenShare();
+                } catch (err) { console.error("Screen share failed", err); }
+            });
+
+            els.screenVideo.onloadedmetadata = () => { adjustScreenShareSize(); clearCanvas(false); setTimeout(() => saveState(), 100); resetTransform(); };
+            els.screenVideo.addEventListener('resize', () => adjustScreenShareSize());
+
+            const stopScreenShare = () => {
+                state.isScreenSharing = false; if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+                els.screenVideo.classList.add('hidden'); els.screenVideo.srcObject = null;
+                els.toggleScreenBtn.classList.replace('bg-accent', 'bg-white/5'); els.toggleScreenBtn.classList.remove('text-white');
+                els.toggleScreenBtn.innerHTML = `<i class="ph ph-screencast text-lg"></i><span class="hidden md:inline">Share</span>`;
+                if (state.isWhiteboard) { drawWhiteboardBackground(); clearCanvas(false); els.pdfCanvas.classList.remove('hidden'); setTimeout(() => saveState(), 100); } 
+                else if (state.pageMap.length > 0) { els.pdfCanvas.classList.remove('hidden'); togglePdfControls(true); renderMapPage(); } 
+                else { els.container.classList.add('hidden'); els.instruction.classList.remove('hidden'); }
+            };
+
+            // --- Whiteboard Toggle ---
+            els.toggleWhiteboard.addEventListener('click', () => {
+                state.isWhiteboard = !state.isWhiteboard; updateWhiteboardBtnUI();
+                if (state.isWhiteboard) {
+                    state.zoomLevel = 1.0; applyTransform(); togglePdfControls(false); els.instruction.classList.add('hidden'); els.container.classList.remove('hidden');
+                    drawWhiteboardBackground(); clearCanvas(false); setTimeout(() => saveState(), 100);
+                } else {
+                    state.zoomLevel = 1.0; applyTransform();
+                    if (state.pageMap.length > 0) { togglePdfControls(true); renderMapPage(); } 
+                    else { els.container.classList.add('hidden'); els.instruction.classList.remove('hidden'); }
+                }
+            });
+
+            const updateWhiteboardBtnUI = () => {
+                if (state.isWhiteboard) {
+                    els.toggleWhiteboard.innerHTML = `<i class="ph ph-file-pdf text-xl"></i><span class="text-sm font-bold tracking-wide">Switch to Slides</span>`;
+                    els.toggleWhiteboard.classList.add('bg-white/20', 'text-white', 'border', 'border-primary/50'); els.toggleWhiteboard.classList.remove('text-teal-200', 'border-transparent');
+                } else {
+                    els.toggleWhiteboard.innerHTML = `<i class="ph ph-presentation-chart text-xl"></i><span class="text-sm font-bold tracking-wide">Switch to Board</span>`;
+                    els.toggleWhiteboard.classList.remove('bg-white/20', 'text-white', 'border', 'border-primary/50'); els.toggleWhiteboard.classList.add('text-teal-200');
+                }
+            };
+
+            // --- Drawing Engine ---
+            const getMousePos = (e) => {
+                const rect = els.drawCanvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                // Pure CSS coordinate mapping. Context is scaled securely via CANVAS_DPR
+                const cssWidth = els.drawCanvas.width / CANVAS_DPR;
+                const cssHeight = els.drawCanvas.height / CANVAS_DPR;
+                const scaleX = cssWidth / rect.width;
+                const scaleY = cssHeight / rect.height;
+                
+                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+            };
+
+            els.textInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; this.style.width = Math.max(150, this.scrollWidth) + 'px'; });
+
+            const commitText = () => {
+                if (els.textInputContainer.classList.contains('hidden')) return;
+                const text = els.textInput.value.trim(); els.textInputContainer.classList.add('hidden');
+                if (text) {
+                    drawCtx.globalCompositeOperation = 'source-over'; drawCtx.fillStyle = els.textInput.style.color;
+                    drawCtx.font = `bold ${state.toolSizes['text'] * 5}px sans-serif`; drawCtx.textBaseline = 'top';
+                    const lines = text.split('\n'); let yOff = state.textPos.y; const lineHeight = state.toolSizes['text'] * 5 * 1.2;
+                    lines.forEach(line => { drawCtx.fillText(line, state.textPos.x + 8, yOff + 8); yOff += lineHeight; });
+                    saveState();
+                }
+            };
+            
+            els.textInput.addEventListener('blur', commitText);
+            els.textInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') els.textInputContainer.classList.add('hidden'); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText(); } });
+
+            let spotlightRaf = null;
+            const drawSpotlight = (pos) => {
+                if(!els.laserCanvas) return;
+                if(spotlightRaf) return; // Prevent overlapping render frames to fix lag
+                
+                spotlightRaf = requestAnimationFrame(() => {
+                    const ctx = els.laserCanvas.getContext('2d');
+                    const cssWidth = els.laserCanvas.width / CANVAS_DPR; const cssHeight = els.laserCanvas.height / CANVAS_DPR;
+                    ctx.clearRect(0, 0, cssWidth, cssHeight);
+                    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.fillRect(0, 0, cssWidth, cssHeight);
+                    ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(pos.x, pos.y, state.toolSizes['spotlight'] * 12, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = state.currentColor; ctx.lineWidth = 3; ctx.stroke();
+                    spotlightRaf = null;
+                });
+            };
+
+            const drawLaserLoop = () => {
+                if (!els.laserCanvas || state.currentTool === 'spotlight') return; 
+                const ctx = els.laserCanvas.getContext('2d');
+                const cssWidth = els.laserCanvas.width / CANVAS_DPR; const cssHeight = els.laserCanvas.height / CANVAS_DPR;
+                ctx.clearRect(0, 0, cssWidth, cssHeight); const now = Date.now(); const lifespan = 750;
+                state.laserPoints = state.laserPoints.filter(p => now - p.time < lifespan);
+                
+                if (state.laserPoints.length === 0) { state.laserLoopRunning = false; return; }
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                
+                for (let i = 1; i < state.laserPoints.length; i++) {
+                    const p1 = state.laserPoints[i-1]; const p2 = state.laserPoints[i]; if (p2.isStart) continue;
+                    const alpha = Math.max(0, 1 - ((now - p2.time) / lifespan));
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                    
+                    // Fixed massive Laser tool lag by replacing shadowBlur with raw stroke geometry scaling
+                    ctx.strokeStyle = p2.color; 
+                    ctx.lineWidth = p2.size * 1.5; 
+                    ctx.globalAlpha = alpha; 
+                    ctx.stroke();
+                }
+                state.laserLoopRunning = true; requestAnimationFrame(drawLaserLoop);
+            };
+
+            // Enhanced for Lag-Free Handwriting
+            const startAction = (e) => {
+                if (e.touches && e.touches.length > 1) { 
+                    state.isPanning = true; state.panStartX = e.touches[0].clientX - state.panX; state.panStartY = e.touches[0].clientY - state.panY; return; 
+                } 
+                if (state.currentTool === 'pan' || state.isSpacePressed) {
+                    state.isPanning = true; const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    state.panStartX = clientX - state.panX; state.panStartY = clientY - state.panY; els.drawCanvas.style.cursor = 'grabbing'; return;
+                }
+                
+                e.preventDefault(); const pos = getMousePos(e);
+                
+                if (state.currentTool === 'text') {
+                    state.textPos = pos; els.textInputContainer.style.left = `${pos.x}px`; els.textInputContainer.style.top = `${pos.y}px`;
+                    els.textInput.style.color = state.currentColor; els.textInput.style.fontSize = `${state.toolSizes['text'] * 5}px`;
+                    els.textInput.style.borderColor = state.currentColor; els.textInput.value = ''; els.textInput.style.width = '150px'; els.textInput.style.height = '48px';
+                    els.textInputContainer.classList.remove('hidden'); setTimeout(() => els.textInput.focus(), 50); return;
+                }
+
+                state.isDrawing = true; state.didDraw = false; state.points = [pos]; const dynamicSize = state.toolSizes[state.currentTool];
+
+                // Configure context state strictly ONCE upon pen down to fix handwriting lag
+                drawCtx.lineCap = state.brushType === 'marker' ? 'square' : 'round';
+                drawCtx.lineJoin = 'round';
+                drawCtx.lineWidth = dynamicSize;
+                
+                if (state.currentTool === 'eraser') {
+                    drawCtx.globalCompositeOperation = 'destination-out';
+                    drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+                    drawCtx.fillStyle = 'rgba(0,0,0,1)';
+                    drawCtx.globalAlpha = 1.0;
+                } else {
+                    drawCtx.globalCompositeOperation = 'source-over';
+                    drawCtx.strokeStyle = state.currentColor;
+                    drawCtx.fillStyle = state.currentColor;
+                    drawCtx.globalAlpha = state.brushType === 'marker' ? 0.3 : 1.0;
+                }
+
+                if (state.currentTool === 'laser') {
+                    state.laserPoints.push({ x: pos.x, y: pos.y, time: Date.now(), color: state.currentColor, size: dynamicSize, isStart: true });
+                    if (!state.laserLoopRunning) drawLaserLoop();
+                } else if (state.currentTool === 'spotlight') { drawSpotlight(pos);
+                } else if (['line', 'rect', 'circle'].includes(state.currentTool)) {
+                    state.snapshotData = drawCtx.getImageData(0, 0, els.drawCanvas.width, els.drawCanvas.height);
+                } else {
+                    drawCtx.beginPath(); drawCtx.arc(pos.x, pos.y, dynamicSize / 2, 0, Math.PI * 2);
+                    drawCtx.fill(); 
+                }
+            };
+
+            const doAction = (e) => {
+                if (state.isPanning && e.touches && e.touches.length > 1) {
+                     e.preventDefault(); state.panX = e.touches[0].clientX - state.panStartX; state.panY = e.touches[0].clientY - state.panStartY; applyTransform(); return;
+                }
+                if (e.touches && e.touches.length > 1) return;
+                
+                if (state.currentTool === 'spotlight' && (!state.isPanning && !state.isSpacePressed)) { const pos = getMousePos(e); drawSpotlight(pos); }
+
+                if (state.isPanning) {
+                    e.preventDefault(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    state.panX = clientX - state.panStartX; state.panY = clientY - state.panStartY; applyTransform(); return;
+                }
+
+                if (state.isDrawing && state.currentTool !== 'text') { 
+                    e.preventDefault(); state.didDraw = true; const pos = getMousePos(e); const dynamicSize = state.toolSizes[state.currentTool];
+
+                    if (state.currentTool === 'laser') {
+                        state.laserPoints.push({ x: pos.x, y: pos.y, time: Date.now(), color: state.currentColor, size: dynamicSize, isStart: false });
+                    } else if (['line', 'rect', 'circle'].includes(state.currentTool) && state.snapshotData) {
+                        drawCtx.putImageData(state.snapshotData, 0, 0); drawCtx.beginPath();
+                        const startX = state.points[0].x; const startY = state.points[0].y;
+                        if (state.currentTool === 'line') { drawCtx.moveTo(startX, startY); drawCtx.lineTo(pos.x, pos.y); } 
+                        else if (state.currentTool === 'rect') { drawCtx.strokeRect(startX, startY, pos.x - startX, pos.y - startY); } 
+                        else if (state.currentTool === 'circle') { const radius = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2)); drawCtx.arc(startX, startY, radius, 0, Math.PI * 2); }
+                        drawCtx.stroke();
+                    } else if (state.currentTool !== 'spotlight') {
+                        state.points.push(pos); if (state.points.length > 3) state.points.shift();
+                        if (state.points.length === 3) {
+                            const p0 = state.points[0]; const p1 = state.points[1]; const p2 = state.points[2];
+                            const midX = (p1.x + p2.x) / 2; const midY = (p1.y + p2.y) / 2; const prevMidX = (p0.x + p1.x) / 2; const prevMidY = (p0.y + p1.y) / 2;
+                            drawCtx.beginPath(); drawCtx.moveTo(prevMidX, prevMidY); drawCtx.quadraticCurveTo(p1.x, p1.y, midX, midY); 
+                            drawCtx.stroke(); 
+                        }
+                    }
+                }
+            };
+
+            const stopAction = (e) => {
+                if (state.isPanning) { state.isPanning = false; if(!state.isSpacePressed) els.drawCanvas.style.cursor = getCursorStyle(state.currentTool); return; }
+                if (state.isDrawing && state.didDraw) {
+                    // Debounce saving logic so fast cursive handwriting isn't interrupted
+                    clearTimeout(state.saveTimer);
+                    state.saveTimer = setTimeout(() => saveState(), 400);
+                }
+                state.isDrawing = false; state.didDraw = false; state.snapshotData = null;
+                drawCtx.globalAlpha = 1.0;
+            };
+
+            const clearCanvas = (save = true) => {
+                const cssWidth = els.drawCanvas.width / CANVAS_DPR; const cssHeight = els.drawCanvas.height / CANVAS_DPR;
+                drawCtx.clearRect(0, 0, cssWidth, cssHeight); if(save) saveState();
+            };
+
+            els.drawCanvas.addEventListener('mousedown', startAction); window.addEventListener('mousemove', doAction); window.addEventListener('mouseup', stopAction);
+            els.drawCanvas.addEventListener('touchstart', startAction, { passive: false }); window.addEventListener('touchmove', doAction, { passive: false }); window.addEventListener('touchend', stopAction);
+
+            // --- Global Drag and Drop Media ---
+            els.wrapper.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); });
+            els.wrapper.addEventListener('drop', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const rect = els.drawCanvas.getBoundingClientRect();
+                            const scaleX = (els.drawCanvas.width / CANVAS_DPR) / rect.width;
+                            const scaleY = (els.drawCanvas.height / CANVAS_DPR) / rect.height;
+                            const dropX = (e.clientX - rect.left) * scaleX; const dropY = (e.clientY - rect.top) * scaleY;
+                            let drawW = img.width; let drawH = img.height; const maxW = (els.drawCanvas.width / CANVAS_DPR) * 0.4; 
+                            if (drawW > maxW) { drawH = drawH * (maxW / drawW); drawW = maxW; }
+                            drawCtx.globalCompositeOperation = 'source-over'; drawCtx.globalAlpha = 1.0; drawCtx.drawImage(img, dropX - drawW/2, dropY - drawH/2, drawW, drawH); saveState();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // --- Pro Hotkeys (Updated for Slides Navigation) ---
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+                switch (e.key.toLowerCase()) {
+                    case ' ': if (!state.isSpacePressed) { state.isSpacePressed = true; state.tempToolBeforePan = state.currentTool; document.getElementById('tool-pan').click(); } e.preventDefault(); break;
+                    case 'p': document.getElementById('tool-pen').click(); break; case 'e': document.getElementById('tool-eraser').click(); break;
+                    case 'h': document.getElementById('tool-highlight').click(); break; case 'l': document.getElementById('tool-laser').click(); break;
+                    case 't': document.getElementById('tool-text').click(); break; case 's': document.getElementById('tool-spotlight').click(); break;
+                    case '/': document.getElementById('tool-line').click(); break; case 'r': document.getElementById('tool-rect').click(); break;
+                    case 'o': document.getElementById('tool-circle').click(); break;
+                    case 'z': if (e.ctrlKey || e.metaKey) { if (e.shiftKey) redo(); else undo(); e.preventDefault(); } break;
+                    case 'y': if (e.ctrlKey || e.metaKey) { redo(); e.preventDefault(); } break;
+                    case 'arrowright':
+                        if (state.pageMap.length > 0 && state.currentMapIndex < state.pageMap.length - 1) els.nextBtn.click();
+                        break;
+                    case 'arrowleft':
+                        if (state.pageMap.length > 0 && state.currentMapIndex > 0) els.prevBtn.click();
+                        break;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === ' ') { state.isSpacePressed = false; if (state.tempToolBeforePan) { const btn = document.getElementById(`tool-${state.tempToolBeforePan}`); if (btn) btn.click(); state.tempToolBeforePan = null; } }
+            });
+
+            // --- Toolbar Configuration & Tool Switching ---
+            const getCursorStyle = (toolName) => { const cursors = { 'pan': 'grab', 'eraser': 'no-drop', 'text': 'text', 'spotlight': 'none' }; return cursors[toolName] || 'crosshair'; };
+
+            const switchToolUI = (btn, internalToolName, isMarker = false) => {
+                els.toolBtns.forEach(b => { if(!['tool-clear', 'tool-undo', 'tool-redo'].includes(b.id)) b.classList.remove('selected'); });
+                btn.classList.add('selected');
+                if (state.currentTool === 'spotlight' && internalToolName !== 'spotlight' && els.laserCanvas) { const ctx = els.laserCanvas.getContext('2d'); ctx.clearRect(0,0, els.laserCanvas.width, els.laserCanvas.height); }
+                state.currentTool = internalToolName; state.brushType = isMarker ? 'marker' : 'solid'; els.drawCanvas.style.cursor = getCursorStyle(internalToolName);
+                if (state.toolSizes[internalToolName] !== undefined) { els.sizeSlider.value = state.toolSizes[internalToolName]; }
+            };
+
+            els.toolBtns.forEach(btn => {
+                if (btn.id === 'tool-clear') { btn.addEventListener('click', clearCanvas); return; }
+                if (btn.id === 'tool-undo') { btn.addEventListener('click', undo); return; }
+                if (btn.id === 'tool-redo') { btn.addEventListener('click', redo); return; }
+                btn.addEventListener('click', () => {
+                    const id = btn.id.replace('tool-', '');
+                    if (['pen', 'laser', 'line', 'rect', 'circle'].includes(id)) switchToolUI(btn, id, false);
+                    else if (id === 'highlight') switchToolUI(btn, id, true);
+                    else if (['pan', 'eraser', 'text', 'spotlight'].includes(id)) switchToolUI(btn, id, false);
+                });
+            });
+
+            const setColor = (color) => {
+                state.currentColor = color;
+                els.colorBtns.forEach(b => { b.classList.remove('selected'); b.style.boxShadow = 'none'; });
+                els.customColorWrapper.classList.remove('border-white', 'scale-125', 'shadow-[0_0_15px_rgba(255,255,255,0.5)]');
+                if(!['pen', 'highlight', 'text', 'line', 'rect', 'circle', 'spotlight'].includes(state.currentTool)) { document.getElementById(state.brushType === 'marker' ? 'tool-highlight' : 'tool-pen').click(); }
+            };
+
+            els.colorBtns.forEach(btn => { btn.addEventListener('click', () => { setColor(btn.dataset.color); btn.classList.add('selected'); btn.style.boxShadow = `0 0 15px ${btn.dataset.color}, 0 0 5px white`; }); });
+            els.customColorInput.addEventListener('input', (e) => { setColor(e.target.value); els.customColorWrapper.classList.add('border-white', 'scale-125', 'shadow-[0_0_15px_rgba(255,255,255,0.5)]'); });
+            els.sizeSlider.addEventListener('input', (e) => { state.toolSizes[state.currentTool] = parseInt(e.target.value); });
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    updateCameraUI(); 
+                    if (state.isScreenSharing) { const savedState = state.undoStack.length > 0 ? state.undoStack[state.undoStack.length - 1] : null; adjustScreenShareSize(); if(savedState) loadCanvasState(savedState); } 
+                    else if (state.isWhiteboard) { const savedState = state.undoStack.length > 0 ? state.undoStack[state.undoStack.length - 1] : null; drawWhiteboardBackground(); if(savedState) loadCanvasState(savedState); } 
+                    else if (state.pageMap.length > 0) renderMapPage();
+                }, 200);
+            });
+
+            // --- Camera / Virtual Background Engine ---
+            let bgRemovalRafId = null; let isProcessingBg = false;
+
+            els.vbgImageUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { state.virtualBgImageEl = img; state.bgMode = 3; updateBackgroundEngineState(); }; img.src = event.target.result; }; reader.readAsDataURL(file);
+                }
+            });
+
+            els.camColorInput.addEventListener('input', (e) => { state.bgMode = 2; state.camBgColor = e.target.value; updateBackgroundEngineState(); });
+            els.camColorWrapper.addEventListener('click', (e) => { e.stopPropagation(); if (state.bgMode !== 2) { state.bgMode = 2; updateBackgroundEngineState(); } });
+
+            // Draw Over Toggle Functionality
+            const toggleCameraLayer = (e) => {
+                if(e) e.stopPropagation();
+                state.isCamBehind = !state.isCamBehind;
+                
+                if (state.isCamBehind) {
+                    els.camLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-lg shrink-0"></i><span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Bring Front</span>';
+                    els.camLayerBtn.classList.replace('bg-amber-600/90', 'bg-red-600/90');
+                    els.camLayerBtn.classList.replace('border-amber-300/50', 'border-red-300/50');
+                    
+                    els.toolkitCamLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-xl"></i><span class="text-xs font-bold tracking-wide">Bring Camera to Front</span>';
+                    els.toolkitCamLayerBtn.classList.replace('text-amber-200', 'text-red-200');
+                    els.toolkitCamLayerBtn.classList.replace('bg-amber-500/10', 'bg-red-500/10');
+                } else {
+                    els.camLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-lg shrink-0"></i><span class="text-[10px] font-bold uppercase tracking-wider pr-2 whitespace-nowrap opacity-0 transition-opacity duration-300">Draw Over</span>';
+                    els.camLayerBtn.classList.replace('bg-red-600/90', 'bg-amber-600/90');
+                    els.camLayerBtn.classList.replace('border-red-300/50', 'border-amber-300/50');
+
+                    els.toolkitCamLayerBtn.innerHTML = '<i class="ph ph-layers-difference text-xl"></i><span class="text-xs font-bold tracking-wide">Push Camera to Back</span>';
+                    els.toolkitCamLayerBtn.classList.replace('text-red-200', 'text-amber-200');
+                    els.toolkitCamLayerBtn.classList.replace('bg-red-500/10', 'bg-amber-500/10');
+                }
+                updateCameraUI();
+            };
+            
+            els.camLayerBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camLayerBtn.addEventListener('touchstart', (e) => e.stopPropagation()); els.camLayerBtn.addEventListener('click', toggleCameraLayer);
+            els.toolkitCamLayerBtn.addEventListener('click', toggleCameraLayer);
+
+            const updateBackgroundEngineState = async () => {
+                // Reset Button styles
+                els.camCutoutBtn.classList.replace('border-primary/50', 'border-white/20'); els.camCutoutIcon.className = 'ph ph-user-focus text-lg text-white';
+                els.camProCutoutBtn.classList.replace('border-primary/50', 'border-white/20'); els.camProCutoutIcon.className = 'ph-fill ph-user-focus text-lg text-white';
+                els.camChromaWrapper.classList.replace('border-primary/50', 'border-white/20'); els.camChromaIcon.className = 'ph ph-projector-screen text-lg text-white';
+                els.camBlurBtn.classList.replace('border-primary/50', 'border-white/20'); els.camBlurIcon.className = 'ph ph-drop-half text-lg text-white';
+                els.camImageBtn.classList.replace('border-primary/50', 'border-white/20'); els.camImageIcon.className = 'ph ph-image text-lg text-white';
+                els.camColorWrapper.classList.replace('border-primary/50', 'border-white/20'); els.camColorIcon.className = 'ph ph-palette text-lg text-white';
+                els.camBoardBgBtn.classList.replace('border-primary/50', 'border-white/20'); els.camBoardBgIcon.className = 'ph ph-chalkboard text-lg text-white';
+
+                if (state.bgMode > 0) {
+                    if (state.cutoutMode === 'ai') { els.camCutoutBtn.classList.replace('border-white/20', 'border-primary/50'); els.camCutoutIcon.className = 'ph-fill ph-user-focus text-lg text-primary'; } 
+                    else if (state.cutoutMode === 'pro') { els.camProCutoutBtn.classList.replace('border-white/20', 'border-primary/50'); els.camProCutoutIcon.className = 'ph-fill ph-user-focus text-lg text-amber-400'; }
+                    else if (state.cutoutMode === 'chroma') { els.camChromaWrapper.classList.replace('border-white/20', 'border-primary/50'); els.camChromaIcon.className = 'ph-fill ph-projector-screen text-lg text-primary'; }
+                }
+
+                if (state.bgMode === 2) { els.camColorWrapper.classList.replace('border-white/20', 'border-primary/50'); els.camColorIcon.className = 'ph-fill ph-palette text-lg text-primary'; } 
+                else if (state.bgMode === 3) { els.camImageBtn.classList.replace('border-white/20', 'border-primary/50'); els.camImageIcon.className = 'ph-fill ph-image text-lg text-primary'; } 
+                else if (state.bgMode === 4) { els.camBlurBtn.classList.replace('border-white/20', 'border-primary/50'); els.camBlurIcon.className = 'ph-fill ph-drop-half text-lg text-primary'; } 
+                else if (state.bgMode === 5) { els.camBoardBgBtn.classList.replace('border-white/20', 'border-primary/50'); els.camBoardBgIcon.className = 'ph-fill ph-chalkboard text-lg text-primary'; }
+
+                if (state.bgMode > 0) {
+                    if (state.bgMode === 4) els.video.classList.remove('opacity-0'); else els.video.classList.add('opacity-0');
+                    els.bgCanvas.classList.remove('hidden');
+
+                    if ((state.cutoutMode === 'ai' || state.cutoutMode === 'pro') && !state.selfieSegmentation) {
+                        els.camCutoutIcon.classList.add('animate-spin'); els.camProCutoutIcon.classList.add('animate-spin');
+                        state.selfieSegmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+                        state.selfieSegmentation.onResults(onResultsBgRemoval);
+                        await state.selfieSegmentation.initialize(); state.isBgModelLoaded = true; 
+                        els.camCutoutIcon.classList.remove('animate-spin'); els.camProCutoutIcon.classList.remove('animate-spin');
+                    }
+                    
+                    if (state.selfieSegmentation) {
+                        state.selfieSegmentation.setOptions({ modelSelection: state.cutoutMode === 'pro' ? 1 : 0 }); // 0 = General, 1 = Landscape (Smoother edges)
+                    }
+
+                    if (!bgRemovalRafId && !isProcessingBg) processBackgroundEngine();
+                } else {
+                    els.video.classList.remove('opacity-0'); els.bgCanvas.classList.add('hidden');
+                    if (bgRemovalRafId) { cancelAnimationFrame(bgRemovalRafId); bgRemovalRafId = null; }
+                    isProcessingBg = false; bgCtx.clearRect(0, 0, els.bgCanvas.width, els.bgCanvas.height);
+                }
+                updateCameraUI();
+            };
+
+            els.camCutoutBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camCutoutBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camCutoutBtn.addEventListener('click', (e) => { e.stopPropagation(); if (state.cutoutMode !== 'ai' || state.bgMode === 0) { state.cutoutMode = 'ai'; if (state.bgMode === 0) state.bgMode = 1; } else state.bgMode = 0; updateBackgroundEngineState(); });
+
+            els.camProCutoutBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camProCutoutBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camProCutoutBtn.addEventListener('click', (e) => { e.stopPropagation(); if (state.cutoutMode !== 'pro' || state.bgMode === 0) { state.cutoutMode = 'pro'; if (state.bgMode === 0) state.bgMode = 1; } else state.bgMode = 0; updateBackgroundEngineState(); });
+
+            els.camChromaInput.addEventListener('input', (e) => { state.cutoutMode = 'chroma'; state.chromaColor = e.target.value; if (state.bgMode === 0) state.bgMode = 1; updateBackgroundEngineState(); });
+            els.camChromaWrapper.addEventListener('click', (e) => { e.stopPropagation(); if (state.cutoutMode !== 'chroma' || state.bgMode === 0) { state.cutoutMode = 'chroma'; if (state.bgMode === 0) state.bgMode = 1; } else state.bgMode = 0; updateBackgroundEngineState(); });
+
+            els.camBlurBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camBlurBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camBlurBtn.addEventListener('click', (e) => { e.stopPropagation(); state.bgMode = state.bgMode === 4 ? 0 : 4; updateBackgroundEngineState(); });
+
+            els.camImageBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camImageBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camImageBtn.addEventListener('click', (e) => { e.stopPropagation(); els.vbgImageUpload.click(); });
+            
+            els.camBoardBgBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camBoardBgBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camBoardBgBtn.addEventListener('click', (e) => { e.stopPropagation(); if (state.bgMode !== 5) { state.bgMode = 5; updateBackgroundEngineState(); } else { state.bgMode = 0; updateBackgroundEngineState(); } });
+
+            if (els.camNeonInput) { els.camNeonInput.addEventListener('click', (e) => e.stopPropagation()); els.camNeonInput.addEventListener('input', (e) => { state.neonColor = e.target.value; if (!state.isNeonMode) state.isNeonMode = true; updateCameraUI(); }); }
+            els.camNeonBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camNeonBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camNeonBtn.addEventListener('click', (e) => { e.stopPropagation(); state.isNeonMode = !state.isNeonMode; updateCameraUI(); });
+            if (els.camNeonSizeBtn) { els.camNeonSizeBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camNeonSizeBtn.addEventListener('touchstart', (e) => e.stopPropagation()); els.camNeonSizeBtn.addEventListener('click', (e) => { e.stopPropagation(); state.neonSizeIdx = (state.neonSizeIdx + 1) % 4; updateCameraUI(); }); }
+
+            const drawBoardAsBackground = (ctx, cW, cH) => {
+                ctx.globalCompositeOperation = 'destination-over'; let sourceW, sourceH;
+                if (state.isScreenSharing && els.screenVideo.readyState >= 2 && !els.screenVideo.classList.contains('hidden')) { sourceW = els.screenVideo.videoWidth || cW; sourceH = els.screenVideo.videoHeight || cH; } 
+                else { sourceW = els.pdfCanvas.width; sourceH = els.pdfCanvas.height; }
+                if (sourceW && sourceH) {
+                    const aspectCam = cW / cH; const aspectBoard = sourceW / sourceH; let drawW = cW, drawH = cH, offsetX = 0, offsetY = 0;
+                    if (aspectBoard > aspectCam) { drawW = cH * aspectBoard; offsetX = (cW - drawW) / 2; } else { drawH = cW / aspectBoard; offsetY = (cH - drawH) / 2; }
+                    ctx.save(); if (state.isMirrored) { ctx.translate(cW, 0); ctx.scale(-1, 1); }
+                    if (state.isScreenSharing && els.screenVideo.readyState >= 2 && !els.screenVideo.classList.contains('hidden')) { ctx.drawImage(els.screenVideo, offsetX, offsetY, drawW, drawH); } 
+                    else { ctx.drawImage(els.drawCanvas, offsetX, offsetY, drawW, drawH); ctx.drawImage(els.pdfCanvas, offsetX, offsetY, drawW, drawH); }
+                    ctx.restore();
+                }
+            };
+
+            const onResultsBgRemoval = (results) => {
+                if (state.bgMode === 0 || !bgCtx) return;
+                if (els.bgCanvas.width !== els.video.videoWidth) { els.bgCanvas.width = els.video.videoWidth; els.bgCanvas.height = els.video.videoHeight; }
+                bgCtx.save(); bgCtx.clearRect(0, 0, els.bgCanvas.width, els.bgCanvas.height);
+                
+                // Advanced Pro Edge Feathering - Disabled on Low End to save GPU power
+                bgCtx.filter = state.cutoutMode === 'pro' && !isLowEnd ? 'blur(3px)' : 'none'; 
+                
+                bgCtx.globalCompositeOperation = 'source-over'; bgCtx.drawImage(results.segmentationMask, 0, 0, els.bgCanvas.width, els.bgCanvas.height);
+                bgCtx.filter = 'none'; bgCtx.globalCompositeOperation = 'destination-in'; bgCtx.drawImage(els.bgCanvas, 0, 0); bgCtx.drawImage(els.bgCanvas, 0, 0); 
+                bgCtx.globalCompositeOperation = 'source-over'; bgCtx.drawImage(els.bgCanvas, 0, 0); bgCtx.drawImage(els.bgCanvas, 0, 0); bgCtx.drawImage(els.bgCanvas, 0, 0); bgCtx.drawImage(els.bgCanvas, 0, 0);
+                bgCtx.globalCompositeOperation = 'source-in'; bgCtx.drawImage(els.video, 0, 0, els.bgCanvas.width, els.bgCanvas.height);
+                
+                if (state.isNeonMode && state.bgMode !== 4) {
+                    const w = els.bgCanvas.width; const h = els.bgCanvas.height; let innerGlowBlur = 10; let glowPasses = 1;
+                    if (state.neonSizeIdx === 0) { innerGlowBlur = 8; glowPasses = 2; } else if (state.neonSizeIdx === 1) { innerGlowBlur = 15; glowPasses = 3; } else if (state.neonSizeIdx === 2) { innerGlowBlur = 25; glowPasses = 4; } else if (state.neonSizeIdx === 3) { innerGlowBlur = 40; glowPasses = 6; }
+                    if (state.chromaCanvas.width !== w) { state.chromaCanvas.width = w; state.chromaCanvas.height = h; }
+                    const tempCtx = state.chromaCanvas.getContext('2d', { willReadFrequently: true }); tempCtx.save(); tempCtx.clearRect(0, 0, w, h);
+                    tempCtx.drawImage(els.bgCanvas, 0, 0); tempCtx.globalCompositeOperation = 'source-out'; tempCtx.fillStyle = state.neonColor; tempCtx.fillRect(0, 0, w, h); tempCtx.restore();
+                    bgCtx.globalCompositeOperation = 'source-atop'; bgCtx.shadowColor = state.neonColor; bgCtx.shadowBlur = innerGlowBlur; bgCtx.shadowOffsetX = 0; bgCtx.shadowOffsetY = 0;
+                    for(let i = 0; i < glowPasses; i++) bgCtx.drawImage(state.chromaCanvas, 0, 0); bgCtx.shadowColor = 'transparent'; 
+                }
+                if (state.bgMode === 5) drawBoardAsBackground(bgCtx, els.bgCanvas.width, els.bgCanvas.height);
+                bgCtx.restore();
+            };
+
+            const applyChromaKey = () => {
+                if (!bgCtx || els.video.videoWidth === 0) return;
+                if (els.bgCanvas.width !== els.video.videoWidth) { els.bgCanvas.width = els.video.videoWidth; els.bgCanvas.height = els.video.videoHeight; state.chromaCanvas.width = els.video.videoWidth; state.chromaCanvas.height = els.video.videoHeight; }
+                const cCtx = state.chromaCanvas.getContext('2d', { willReadFrequently: true }); cCtx.filter = 'none'; cCtx.drawImage(els.video, 0, 0, state.chromaCanvas.width, state.chromaCanvas.height);
+                const frame = cCtx.getImageData(0, 0, state.chromaCanvas.width, state.chromaCanvas.height); const data = frame.data; const hex = state.chromaColor.replace('#', '');
+                const targetR = parseInt(hex.substring(0,2), 16); const targetG = parseInt(hex.substring(2,4), 16); const targetB = parseInt(hex.substring(4,6), 16);
+                const tolerance = 110; const smoothness = 50; const tolSq = tolerance * tolerance; const smoothTolSq = (tolerance + smoothness) * (tolerance + smoothness);
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i]; const g = data[i+1]; const b = data[i+2]; const distSq = (r - targetR)*(r - targetR) + (g - targetG)*(g - targetG) + (b - targetB)*(b - targetB);
+                    if (distSq < tolSq) data[i+3] = 0; else if (distSq < smoothTolSq) { const dist = Math.sqrt(distSq); const alpha = (dist - tolerance) / smoothness; data[i+3] = data[i+3] * alpha; }
+                }
+                cCtx.putImageData(frame, 0, 0); bgCtx.save(); bgCtx.clearRect(0, 0, els.bgCanvas.width, els.bgCanvas.height); bgCtx.drawImage(state.chromaCanvas, 0, 0);
+                if (state.isNeonMode && state.bgMode !== 4) {
+                    const w = els.bgCanvas.width; const h = els.bgCanvas.height; let innerGlowBlur = 10; let glowPasses = 1;
+                    if (state.neonSizeIdx === 0) { innerGlowBlur = 8; glowPasses = 2; } else if (state.neonSizeIdx === 1) { innerGlowBlur = 15; glowPasses = 3; } else if (state.neonSizeIdx === 2) { innerGlowBlur = 25; glowPasses = 4; } else if (state.neonSizeIdx === 3) { innerGlowBlur = 40; glowPasses = 6; }
+                    const tempCtx = state.chromaCanvas.getContext('2d', { willReadFrequently: true }); tempCtx.save(); tempCtx.clearRect(0, 0, w, h);
+                    tempCtx.drawImage(els.bgCanvas, 0, 0); tempCtx.globalCompositeOperation = 'source-out'; tempCtx.fillStyle = state.neonColor; tempCtx.fillRect(0, 0, w, h); tempCtx.restore();
+                    bgCtx.globalCompositeOperation = 'source-atop'; bgCtx.shadowColor = state.neonColor; bgCtx.shadowBlur = innerGlowBlur; bgCtx.shadowOffsetX = 0; bgCtx.shadowOffsetY = 0;
+                    for(let i = 0; i < glowPasses; i++) bgCtx.drawImage(state.chromaCanvas, 0, 0); bgCtx.shadowColor = 'transparent';
+                }
+                if (state.bgMode === 5) drawBoardAsBackground(bgCtx, els.bgCanvas.width, els.bgCanvas.height);
+                bgCtx.restore();
+            };
+
+            const processBackgroundEngine = async () => {
+                if (state.bgMode === 0 || els.video.paused || els.video.ended) { bgRemovalRafId = null; isProcessingBg = false; return; }
+                if (!isProcessingBg) {
+                    isProcessingBg = true;
+                    if ((state.cutoutMode === 'ai' || state.cutoutMode === 'pro') && state.selfieSegmentation && els.video.videoWidth > 0) { try { await state.selfieSegmentation.send({ image: els.video }); } catch (error) { console.error(error); } } 
+                    else if (state.cutoutMode === 'chroma' && els.video.videoWidth > 0) applyChromaKey(); 
+                    isProcessingBg = false;
+                }
+                
+                if (state.bgMode > 0) {
+                    // Frame Rate limiter for AI to save battery and limit lag on 1GB RAM Devices
+                    if (isLowEnd) {
+                        setTimeout(() => { bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); }, 1000 / 15);
+                    } else {
+                        bgRemovalRafId = requestAnimationFrame(processBackgroundEngine); 
+                    }
+                } else {
+                    bgRemovalRafId = null;
+                }
+            };
+            
+            els.video.addEventListener('play', () => { if (state.bgMode > 0 && !bgRemovalRafId) { isProcessingBg = false; processBackgroundEngine(); }});
+
+            els.toggleDiscussionBtn.addEventListener('click', () => {
+                state.isDiscussionMode = !state.isDiscussionMode;
+                if (state.isDiscussionMode) {
+                    els.toggleDiscussionBtn.classList.replace('bg-white/5', 'bg-accent'); els.toggleDiscussionBtn.classList.add('text-white');
+                    els.toggleDiscussionBtn.innerHTML = `<i class="ph ph-users-three text-lg"></i><span class="hidden md:inline">Stop Discuss</span>`;
+                    if (state.isCamHidden) { state.isCamHidden = false; if(!els.video.srcObject) startLocalCamera(); }
+                    if (state.camQuality !== 2) { state.camQuality = 2; els.camQualityText.textContent = '1080p HD'; els.camQualityIcon.className = 'ph-fill ph-high-definition text-lg shrink-0'; startLocalCamera(); }
+                } else {
+                    els.toggleDiscussionBtn.classList.replace('bg-accent', 'bg-white/5'); els.toggleDiscussionBtn.classList.remove('text-white');
+                    els.toggleDiscussionBtn.innerHTML = `<i class="ph ph-users-three text-lg"></i><span class="hidden md:inline">Discuss</span>`;
+                }
+                updateCameraUI();
+            });
+
+            els.video.addEventListener('loadedmetadata', () => updateCameraUI());
+
+            const updateCameraUI = () => {
+                if (state.isCamHidden) {
+                    els.camWindow.classList.add('hidden'); els.toggleCamera.classList.replace('bg-primary/20', 'bg-white/5'); els.toggleCamera.classList.replace('text-primary', 'text-teal-100');
+                    els.toggleCamera.classList.replace('border-primary/30', 'border-white/10'); els.cameraIcon.classList.replace('ph-video-camera', 'ph-video-camera-slash'); return;
+                }
+
+                els.camWindow.classList.remove('hidden'); els.toggleCamera.classList.replace('bg-white/5', 'bg-primary/20'); els.toggleCamera.classList.replace('text-teal-100', 'text-primary');
+                els.toggleCamera.classList.replace('border-white/10', 'border-primary/30'); els.cameraIcon.classList.replace('ph-video-camera-slash', 'ph-video-camera');
+
+                const isMaximized = state.isFullscreenCam || state.isDiscussionMode;
+                
+                // Camera Layer Control logic
+                let baseZClass = state.isCamBehind ? 'z-[5]' : 'z-[60]';
+                
+                let classes = `gpu-accelerated flex flex-col group overflow-hidden transition-all duration-300 ${baseZClass} `;
+                let videoRadius = '0'; let newW = state.camCustomSize ? state.camCustomSize.w : 280; let newH;
+                const vw = els.video.videoWidth || 16; const vh = els.video.videoHeight || 9; const aspect = vw / vh; 
+                
+                if (state.isFullscreenCam) {
+                    classes += 'fixed !z-[100] '; els.camFullscreenIcon.className = 'ph ph-corners-in text-lg'; els.camResizeHandle.classList.add('hidden');
+                    let availableW = window.innerWidth; let availableH = window.innerHeight; let targetW = availableW; let targetH = targetW / aspect;
+                    if (targetH > availableH) { targetH = availableH; targetW = targetH * aspect; }
+                    els.camWindow.style.left = `${(availableW - targetW) / 2}px`; els.camWindow.style.top = `${(availableH - targetH) / 2}px`; els.camWindow.style.bottom = 'auto'; els.camWindow.style.right = 'auto'; els.camWindow.style.width = `${targetW}px`; els.camWindow.style.height = `${targetH}px`;
+                } else if (state.isDiscussionMode) {
+                    classes += 'fixed z-30 shadow-[0_20px_60px_rgba(0,0,0,0.8)] '; els.camFullscreenIcon.className = 'ph ph-corners-out text-lg'; els.camResizeHandle.classList.add('hidden');
+                    let availableW = window.innerWidth; let availableH = window.innerHeight - 64; let targetW = availableW; let targetH = targetW / aspect;
+                    if (targetH > availableH) { targetH = availableH; targetW = targetH * aspect; }
+                    els.camWindow.style.left = `${(availableW - targetW) / 2}px`; els.camWindow.style.top = `${64 + (availableH - targetH) / 2}px`; els.camWindow.style.bottom = 'auto'; els.camWindow.style.right = 'auto'; els.camWindow.style.width = `${targetW}px`; els.camWindow.style.height = `${targetH}px`; videoRadius = '1rem'; 
+                } else {
+                    classes += 'absolute cursor-grab active:cursor-grabbing '; els.camFullscreenIcon.className = 'ph ph-corners-out text-lg'; els.camResizeHandle.classList.remove('hidden');
+                    if (state.camCustomSize) {
+                        newW = state.camCustomSize.w;
+                        if (state.camShape === 2) { classes += 'rounded-full '; els.camShapeIcon.className = 'ph ph-circle text-lg'; newH = newW; videoRadius = '50%'; } 
+                        else if (state.camShape === 1) { classes += 'rounded-2xl '; els.camShapeIcon.className = 'ph ph-device-mobile text-lg'; newH = state.camCustomSize.h; videoRadius = '1rem'; } 
+                        else { classes += 'rounded-2xl '; els.camShapeIcon.className = 'ph ph-rectangle text-lg'; newH = state.camCustomSize.h; videoRadius = '1rem'; }
+                    } else {
+                        newW = 280;
+                        if (state.camShape === 2) { classes += 'rounded-full '; els.camShapeIcon.className = 'ph ph-circle text-lg'; newH = 280; videoRadius = '50%'; } 
+                        else if (state.camShape === 1) { classes += 'rounded-2xl '; els.camShapeIcon.className = 'ph ph-device-mobile text-lg'; newH = 280 * (16/9); videoRadius = '1rem'; } 
+                        else { classes += 'rounded-2xl '; els.camShapeIcon.className = 'ph ph-rectangle text-lg'; newH = 280 / aspect; videoRadius = '1rem'; }
+                    }
+                    els.camWindow.style.width = `${newW}px`; els.camWindow.style.height = `${newH}px`;
+                }
+
+                els.camWindow.style.backgroundColor = ''; els.camWindow.style.backgroundImage = 'none';
+
+                if (state.bgMode === 1 || state.bgMode === 4) { if (!isMaximized) classes += 'bg-transparent border-none shadow-none '; } 
+                else if (state.bgMode === 2) { els.camWindow.style.backgroundColor = state.camBgColor; if (!isMaximized) classes += (state.camShape === 2) ? 'border-none shadow-[0_10px_40px_rgba(0,0,0,0.8)] ' : 'border border-primary/30 shadow-[0_10px_40px_rgba(0,0,0,0.8)] '; } 
+                else if (state.bgMode === 3 && state.virtualBgImageEl) { els.camWindow.style.backgroundImage = `url(${state.virtualBgImageEl.src})`; els.camWindow.style.backgroundSize = 'cover'; els.camWindow.style.backgroundPosition = 'center'; if (!isMaximized) classes += (state.camShape === 2) ? 'border-none shadow-[0_10px_40px_rgba(0,0,0,0.8)] ' : 'border border-primary/30 shadow-[0_10px_40px_rgba(0,0,0,0.8)] '; } 
+                else { els.camWindow.style.backgroundColor = '#011c16'; if (!isMaximized) classes += (state.camShape === 2) ? 'border-none shadow-[0_10px_40px_rgba(0,0,0,0.8)] ' : 'border border-primary/30 shadow-[0_10px_40px_rgba(0,0,0,0.8)] '; }
+
+                els.video.style.borderRadius = videoRadius; els.bgCanvas.style.borderRadius = videoRadius;
+                els.bgCanvas.style.webkitMaskImage = 'none'; els.video.style.webkitMaskImage = 'none';
+                els.video.style.objectFit = 'cover'; els.bgCanvas.style.objectFit = 'cover';
+                
+                const transformStr = state.isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+                els.video.style.transform = transformStr; els.bgCanvas.style.transform = transformStr;
+                
+                if (state.isNeonMode) { els.camNeonBtn.classList.replace('border-white/20', 'border-primary/50'); els.camNeonIcon.className = 'ph-fill ph-lightning text-lg text-primary shrink-0'; if (els.camNeonSizeBtn) { els.camNeonSizeBtn.classList.replace('border-white/20', 'border-primary/50'); els.camNeonSizeIcon.className = 'ph-fill ph-circles-three text-lg text-primary shrink-0'; } } 
+                else { els.camNeonBtn.classList.replace('border-primary/50', 'border-white/20'); els.camNeonIcon.className = 'ph ph-lightning text-lg text-white shrink-0'; if (els.camNeonSizeBtn) { els.camNeonSizeBtn.classList.replace('border-primary/50', 'border-white/20'); els.camNeonSizeIcon.className = 'ph ph-circles-three text-lg text-white shrink-0'; } }
+
+                const neonLabels = ['Thin', 'Medium', 'Bold', 'X-Bold'];
+                if (els.camNeonSizeText) els.camNeonSizeText.textContent = neonLabels[state.neonSizeIdx];
+
+                // LOW END DEVICE FIX: Replaced saturate/contrast on Eco Mode.
+                let filterStr = 'none';
+                if (state.camQuality !== 0) { // If not on Eco Mode
+                    filterStr = state.isBeautyMode ? 'contrast(1.02) saturate(1.1) brightness(1.05)' : 'none'; 
+                } else if (state.isBeautyMode) {
+                    filterStr = 'brightness(1.05)';
+                }
+                
+                let neonFilter = '';
+                if (state.neonSizeIdx === 0) neonFilter = ` drop-shadow(0px 0px 6px ${state.neonColor}) drop-shadow(0px 0px 18px ${state.neonColor})`;
+                else if (state.neonSizeIdx === 1) neonFilter = ` drop-shadow(0px 0px 4px ${state.neonColor}) drop-shadow(0px 0px 12px ${state.neonColor}) drop-shadow(0px 0px 24px ${state.neonColor})`;
+                else if (state.neonSizeIdx === 2) neonFilter = ` drop-shadow(0px 0px 3px ${state.neonColor}) drop-shadow(0px 0px 8px ${state.neonColor}) drop-shadow(0px 0px 16px ${state.neonColor}) drop-shadow(0px 0px 32px ${state.neonColor})`;
+                else if (state.neonSizeIdx === 3) neonFilter = ` drop-shadow(0px 0px 2px ${state.neonColor}) drop-shadow(0px 0px 5px ${state.neonColor}) drop-shadow(0px 0px 10px ${state.neonColor}) drop-shadow(0px 0px 20px ${state.neonColor}) drop-shadow(0px 0px 40px ${state.neonColor})`;
+
+                if (state.isNeonMode && state.bgMode > 0 && state.bgMode !== 4) filterStr += neonFilter;
+                else if (state.isNeonMode && state.bgMode === 4) filterStr += neonFilter;
+                
+                if (filterStr.startsWith('none ')) filterStr = filterStr.replace('none ', '');
+
+                if (state.bgMode === 4) { els.video.style.filter = (filterStr !== 'none' ? filterStr + ' ' : '') + 'blur(12px)'; els.bgCanvas.style.filter = filterStr; } 
+                else { els.video.style.filter = filterStr; els.bgCanvas.style.filter = filterStr; }
+                
+                els.camWindow.className = classes;
+            };
+
+            els.camQualityBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camQualityBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camQualityBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); state.camQuality = (state.camQuality + 1) % 3; 
+                if (state.camQuality === 0) {
+                    els.camQualityText.textContent = 'Eco Mode'; els.camQualityIcon.className = 'ph ph-faders text-lg shrink-0';
+                    els.camQualityBtn.classList.replace('border-primary/50', 'border-white/20'); els.camQualityBtn.classList.remove('text-primary'); els.camQualityBtn.classList.add('text-white');
+                } else if (state.camQuality === 1) {
+                    els.camQualityText.textContent = '720p HD'; els.camQualityIcon.className = 'ph-fill ph-high-definition text-lg shrink-0';
+                    els.camQualityBtn.classList.replace('border-white/20', 'border-primary/50'); els.camQualityBtn.classList.replace('text-white', 'text-primary');
+                } else if (state.camQuality === 2) { els.camQualityText.textContent = '1080p HD'; els.camQualityIcon.className = 'ph-fill ph-high-definition text-lg shrink-0'; }
+                startLocalCamera();
+            });
+
+            els.camMirrorBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camMirrorBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camMirrorBtn.addEventListener('click', (e) => { e.stopPropagation(); state.isMirrored = !state.isMirrored; updateCameraUI(); });
+            
+            els.toggleCamera.addEventListener('click', () => { 
+                state.isCamHidden = !state.isCamHidden; 
+                if(!state.isCamHidden && !els.video.srcObject) { startLocalCamera(); }
+                updateCameraUI(); 
+            });
+            
+            els.camBeautyBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camBeautyBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camBeautyBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); state.isBeautyMode = !state.isBeautyMode; 
+                if (state.isBeautyMode) { els.camBeautyBtn.classList.replace('border-white/20', 'border-primary/50'); els.camBeautyIcon.className = 'ph-fill ph-sparkle text-lg text-primary'; } 
+                else { els.camBeautyBtn.classList.replace('border-primary/50', 'border-white/20'); els.camBeautyIcon.className = 'ph ph-sparkle text-lg text-white'; }
+                updateCameraUI();
+            });
+
+            const startLocalCamera = () => {
+                if (els.video.srcObject) els.video.srcObject.getTracks().forEach(t => t.stop());
+                
+                let videoConstraints = true;
+                if (state.camQuality === 0 && isLowEnd) videoConstraints = { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { max: 15 } };
+                else if (state.camQuality === 1) videoConstraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
+                else if (state.camQuality === 2) videoConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+
+                navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false })
+                    .then(stream => { els.video.srcObject = stream; els.camStatus.classList.add('hidden'); })
+                    .catch(err => { els.camStatus.querySelector('span').textContent = "Camera Access Denied"; els.camStatus.classList.remove('hidden'); });
+            };
+
+            els.camShapeBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camShapeBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camShapeBtn.addEventListener('click', (e) => { e.stopPropagation(); if (state.isFullscreenCam || state.isDiscussionMode) return; state.camShape = (state.camShape + 1) % 3; state.camCustomSize = null; updateCameraUI(); });
+            
+            els.camFullscreenBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camFullscreenBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camFullscreenBtn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                state.isFullscreenCam = !state.isFullscreenCam; 
+                if (state.isFullscreenCam) { 
+                    state.camPreFullscreenPos = { left: els.camWindow.style.left, top: els.camWindow.style.top, bottom: els.camWindow.style.bottom, right: els.camWindow.style.right }; 
+                } else {
+                    // Mobile fix: Safely restore coordinates or let it auto-align instead of strictly forcing absolute edge checks
+                    els.camWindow.style.left = state.camPreFullscreenPos.left || 'auto';
+                    els.camWindow.style.top = state.camPreFullscreenPos.top || 'auto';
+                    els.camWindow.style.bottom = state.camPreFullscreenPos.bottom || '2rem';
+                    els.camWindow.style.right = state.camPreFullscreenPos.right || '2rem';
+                }
+                updateCameraUI(); 
+            });
+
+            // Host PeerJS Setup for handling Sync & Pad modes
+            const hostRoomId = Math.random().toString(36).substring(2, 8);
+            try {
+                peer = new Peer('sblive-host-' + hostRoomId);
+
+                peer.on('call', (call) => { 
+                    call.answer(); call.on('stream', (remoteStream) => { 
+                        els.video.srcObject = remoteStream; els.camStatus.classList.add('hidden'); els.camQrOverlay.classList.add('hidden'); state.isMirrored = false; state.camShape = 0; state.camCustomSize = null; if (els.video.readyState >= 1) updateCameraUI(); 
+                    }); 
+                });
+
+                peer.on('connection', (conn) => {
+                    els.padQrOverlay.classList.add('hidden');
+                    conn.on('data', (data) => {
+                        if (data.type === 'clear') {
+                            clearCanvas(true);
+                        } else if (data.type === 'draw') {
+                            const px = data.nx * (els.drawCanvas.width / CANVAS_DPR);
+                            const py = data.ny * (els.drawCanvas.height / CANVAS_DPR);
+                            
+                            if (data.action === 'start') {
+                                state.remoteLastX = px; state.remoteLastY = py;
+                                
+                                // Emulate dot click
+                                drawCtx.beginPath(); drawCtx.arc(px, py, data.size / 2, 0, Math.PI * 2);
+                                if (data.tool === 'eraser') { drawCtx.globalCompositeOperation = 'destination-out'; drawCtx.fillStyle = 'rgba(0,0,0,1)'; } 
+                                else { drawCtx.globalCompositeOperation = 'source-over'; drawCtx.fillStyle = data.color; }
+                                drawCtx.fill(); drawCtx.globalAlpha = 1.0;
+
+                            } else if (data.action === 'move') {
+                                drawCtx.beginPath();
+                                drawCtx.moveTo(state.remoteLastX, state.remoteLastY);
+                                drawCtx.lineTo(px, py);
+                                drawCtx.lineCap = 'round';
+                                drawCtx.lineJoin = 'round';
+                                if (data.tool === 'eraser') {
+                                    drawCtx.globalCompositeOperation = 'destination-out';
+                                    drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+                                } else {
+                                    drawCtx.globalCompositeOperation = 'source-over';
+                                    drawCtx.strokeStyle = data.color;
+                                }
+                                drawCtx.lineWidth = data.size;
+                                drawCtx.stroke();
+                                drawCtx.globalCompositeOperation = 'source-over'; // Reset
+                                state.remoteLastX = px; state.remoteLastY = py;
+                            } else if (data.action === 'end') {
+                                saveState();
+                            }
+                        }
+                    });
+                });
+                
+                peer.on('error', (err) => console.warn("PeerJS error:", err));
+            } catch (e) {
+                console.warn("PeerJS sync features not available in this environment (Preview).", e);
+            }
+
+            // Camera QR Sync UI
+            els.camQrBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.camQrBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.camQrBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); if(els.video.srcObject) els.video.srcObject.getTracks().forEach(t => t.stop());
+                let syncUrl = window.location.origin + window.location.pathname + '?sync=' + hostRoomId;
+                els.qrcodeContainer.innerHTML = ''; new QRCode(els.qrcodeContainer, { text: syncUrl, width: 100, height: 100, colorDark : "#011c16", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
+                els.camQrOverlay.classList.remove('hidden');
+            });
+            els.cancelQrBtn.addEventListener('mousedown', (e) => e.stopPropagation()); els.cancelQrBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+            els.cancelQrBtn.addEventListener('click', (e) => { e.stopPropagation(); els.camQrOverlay.classList.add('hidden'); startLocalCamera(); });
+
+            // Tablet Drawing Pad Link UI
+            els.toolkitLinkPadBtn.addEventListener('click', () => {
+                let padUrl = window.location.origin + window.location.pathname + '?pad=' + hostRoomId;
+                els.padQrcodeContainer.innerHTML = ''; new QRCode(els.padQrcodeContainer, { text: padUrl, width: 150, height: 150, colorDark : "#011c16", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
+                els.padQrOverlay.classList.remove('hidden');
+                els.closeToolkitBtn.click(); // Close toolkit automatically
+            });
+            els.cancelPadQrBtn.addEventListener('click', () => { els.padQrOverlay.classList.add('hidden'); });
+
+            // Touch Drag Logic for Camera
+            let isDraggingCam = false; let isResizingCam = false; let camStartX, camStartY, camInitialLeft, camInitialTop, camStartW, camStartH;
+            
+            // Mouse Events
+            els.camDragHandle.addEventListener('mousedown', (e) => {
+                if (state.isFullscreenCam || state.isDiscussionMode) return;
+                isDraggingCam = true; els.camWindow.classList.add('transition-none');
+                const rect = els.camWindow.getBoundingClientRect(); camInitialLeft = rect.left; camInitialTop = rect.top; camStartX = e.clientX; camStartY = e.clientY;
+            });
+            els.camResizeHandle.addEventListener('mousedown', (e) => {
+                if (state.isFullscreenCam || state.isDiscussionMode) return;
+                e.stopPropagation(); isResizingCam = true; els.camWindow.classList.add('transition-none'); camStartW = els.camWindow.offsetWidth; camStartH = els.camWindow.offsetHeight; camStartX = e.clientX; camStartY = e.clientY;
+            });
+            
+            // Touch Events (Mobile/Tablet specific fix)
+            els.camDragHandle.addEventListener('touchstart', (e) => {
+                if (state.isFullscreenCam || state.isDiscussionMode) return;
+                isDraggingCam = true; els.camWindow.classList.add('transition-none');
+                const rect = els.camWindow.getBoundingClientRect(); camInitialLeft = rect.left; camInitialTop = rect.top; camStartX = e.touches[0].clientX; camStartY = e.touches[0].clientY;
+            }, {passive: true});
+            els.camResizeHandle.addEventListener('touchstart', (e) => {
+                if (state.isFullscreenCam || state.isDiscussionMode) return;
+                e.stopPropagation(); isResizingCam = true; els.camWindow.classList.add('transition-none'); camStartW = els.camWindow.offsetWidth; camStartH = els.camWindow.offsetHeight; camStartX = e.touches[0].clientX; camStartY = e.touches[0].clientY;
+            }, {passive: true});
+
+            window.addEventListener('mousemove', (e) => {
+                if (isResizingCam && !state.isFullscreenCam && !state.isDiscussionMode) {
+                    let newW = Math.max(150, camStartW + (e.clientX - camStartX)); let newH;
+                    if (state.camShape === 2) { const size = Math.max(newW, camStartH + (e.clientY - camStartY)); newW = size; newH = size; } 
+                    else if (state.camShape === 1) { newH = newW * (16/9); } else { const vw = els.video.videoWidth || 16; const vh = els.video.videoHeight || 9; const aspect = vw / vh; newH = newW / aspect; }
+                    state.camCustomSize = { w: newW, h: newH }; els.camWindow.style.width = `${newW}px`; els.camWindow.style.height = `${newH}px`; return;
+                }
+                if (!isDraggingCam || state.isFullscreenCam || state.isDiscussionMode) return;
+                let newLeft = camInitialLeft + (e.clientX - camStartX); let newTop = camInitialTop + (e.clientY - camStartY);
+                newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - els.camWindow.offsetWidth)); newTop = Math.max(0, Math.min(newTop, window.innerHeight - els.camWindow.offsetHeight));
+                els.camWindow.style.bottom = 'auto'; els.camWindow.style.right = 'auto'; els.camWindow.style.left = `${newLeft}px`; els.camWindow.style.top = `${newTop}px`;
+            });
+            
+            // Touch Move mapping
+            window.addEventListener('touchmove', (e) => {
+                if (isResizingCam && !state.isFullscreenCam && !state.isDiscussionMode) {
+                    e.preventDefault(); // Prevents UI drag scroll when resizing
+                    let newW = Math.max(150, camStartW + (e.touches[0].clientX - camStartX)); let newH;
+                    if (state.camShape === 2) { const size = Math.max(newW, camStartH + (e.touches[0].clientY - camStartY)); newW = size; newH = size; } 
+                    else if (state.camShape === 1) { newH = newW * (16/9); } else { const vw = els.video.videoWidth || 16; const vh = els.video.videoHeight || 9; const aspect = vw / vh; newH = newW / aspect; }
+                    state.camCustomSize = { w: newW, h: newH }; els.camWindow.style.width = `${newW}px`; els.camWindow.style.height = `${newH}px`; return;
+                }
+                if (!isDraggingCam || state.isFullscreenCam || state.isDiscussionMode) return;
+                e.preventDefault(); // Prevents UI drag scroll when moving
+                let newLeft = camInitialLeft + (e.touches[0].clientX - camStartX); let newTop = camInitialTop + (e.touches[0].clientY - camStartY);
+                newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - els.camWindow.offsetWidth)); newTop = Math.max(0, Math.min(newTop, window.innerHeight - els.camWindow.offsetHeight));
+                els.camWindow.style.bottom = 'auto'; els.camWindow.style.right = 'auto'; els.camWindow.style.left = `${newLeft}px`; els.camWindow.style.top = `${newTop}px`;
+            }, {passive: false});
+
+            window.addEventListener('mouseup', () => { if(isDraggingCam) { isDraggingCam = false; els.camWindow.classList.remove('transition-none'); } if(isResizingCam) { isResizingCam = false; els.camWindow.classList.remove('transition-none'); } });
+            window.addEventListener('touchend', () => { if(isDraggingCam) { isDraggingCam = false; els.camWindow.classList.remove('transition-none'); } if(isResizingCam) { isResizingCam = false; els.camWindow.classList.remove('transition-none'); } });
+
+            // Recording and Streaming Logic
+            const startSystemCapture = async () => {
+                try {
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: { ideal: 30, max: 30 } }, audio: true, preferCurrentTab: true });
+                    if (window.CropTarget) { try { const cropTarget = await CropTarget.fromElement(els.wrapper); const [videoTrack] = displayStream.getVideoTracks(); await videoTrack.cropTo(cropTarget); } catch (err) { console.warn("Region capture ignored/unsupported.", err); } }
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true } }); state.activeMicStream = micStream; 
+                    const audioCtx = new AudioContext(); const dest = audioCtx.createMediaStreamDestination();
+                    if (micStream.getAudioTracks().length > 0) { const micSource = audioCtx.createMediaStreamSource(micStream); micSource.connect(dest); }
+                    if (displayStream.getAudioTracks().length > 0) { const displayAudioSource = audioCtx.createMediaStreamSource(new MediaStream([displayStream.getAudioTracks()[0]])); displayAudioSource.connect(dest); }
+                    const combinedStream = new MediaStream([ ...displayStream.getVideoTracks(), ...dest.stream.getAudioTracks() ]);
+                    displayStream.getVideoTracks()[0].addEventListener('ended', () => { if (state.isRecording) els.recordBtn.click(); if (state.isStreaming) els.streamBtn.click(); });
+                    return combinedStream;
+                } catch (e) { console.error("Capture Failed:", e); return null; }
+            };
+
+            els.recordBtn.addEventListener('click', async () => {
+                if (state.isRecording) { state.mediaRecorder.stop(); state.isRecording = false; els.recordIcon.classList.remove('animate-pulse'); els.recordBtn.classList.replace('bg-red-500/20', 'bg-white/5'); els.recordText.innerText = 'Record'; els.wrapper.classList.remove('ring-4', 'ring-red-500/80', 'ring-inset'); return; }
+                els.recordModal.classList.remove('hidden');
+            });
+            els.cancelRecordBtn.addEventListener('click', () => { els.recordModal.classList.add('hidden'); });
+
+            els.startRecordBtn.addEventListener('click', async () => {
+                els.recordModal.classList.add('hidden'); const stream = await startSystemCapture(); if (!stream) return;
+                els.wrapper.classList.add('ring-4', 'ring-red-500/80', 'ring-inset', 'transition-shadow'); state.recordedChunks = []; 
+                let options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 }; if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { videoBitsPerSecond: 2500000 }; 
+                state.mediaRecorder = new MediaRecorder(stream, options); state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.recordedChunks.push(e.data); };
+                state.mediaRecorder.onstop = () => {
+                    const blob = new Blob(state.recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a');
+                    a.href = url; a.download = `SBLive_Recording_${new Date().getTime()}.webm`; a.click(); URL.revokeObjectURL(url); stream.getTracks().forEach(t => t.stop()); 
+                    if (state.activeMicStream) { state.activeMicStream.getTracks().forEach(t => t.stop()); state.activeMicStream = null; }
+                    els.wrapper.classList.remove('ring-4', 'ring-red-500/80', 'ring-inset');
+                };
+                state.mediaRecorder.start(); state.isRecording = true;
+                els.recordIcon.classList.add('animate-pulse'); els.recordBtn.classList.replace('bg-white/5', 'bg-red-500/20'); els.recordText.innerText = 'Recording...';
+            });
+
+            els.streamBtn.addEventListener('click', () => {
+                if (state.isStreaming) { state.streamRecorder.stop(); if (state.webSocket) state.webSocket.close(); state.isStreaming = false; els.streamIcon.classList.remove('animate-pulse', 'text-red-500'); els.streamBtn.classList.replace('bg-emerald-500/20', 'bg-white/5'); els.streamText.innerText = 'Go Live'; return; }
+                els.streamModal.classList.remove('hidden'); els.streamKeyInput.focus();
+            });
+            els.cancelStreamBtn.addEventListener('click', () => { els.streamModal.classList.add('hidden'); els.streamKeyInput.value = ''; });
+
+            els.startStreamBtn.addEventListener('click', async () => {
+                const streamKey = els.streamKeyInput.value.trim(); 
+                if (!streamKey) { 
+                    els.streamKeyInput.placeholder = "REQUIRED: Paste Key Here!";
+                    els.streamKeyInput.classList.add('border-red-500');
+                    return; 
+                }
+                els.streamKeyInput.classList.remove('border-red-500');
+                els.streamModal.classList.add('hidden'); const stream = await startSystemCapture(); if (!stream) return;
+                const wsUrl = `ws://localhost:3000/live?key=${encodeURIComponent(streamKey)}`;
+                try { state.webSocket = new WebSocket(wsUrl); } catch (e) { console.error("Invalid WebSocket config."); stream.getTracks().forEach(t => t.stop()); return; }
+                state.webSocket.onopen = () => {
+                    let options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 }; if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { videoBitsPerSecond: 2500000 };
+                    state.streamRecorder = new MediaRecorder(stream, options); state.streamRecorder.ondataavailable = e => { if (e.data.size > 0 && state.webSocket.readyState === WebSocket.OPEN) { state.webSocket.send(e.data); } };
+                    state.streamRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); if (state.activeMicStream) { state.activeMicStream.getTracks().forEach(t => t.stop()); state.activeMicStream = null; } if(state.webSocket && state.webSocket.readyState === WebSocket.OPEN) state.webSocket.close(); };
+                    state.streamRecorder.start(250); state.isStreaming = true; els.streamIcon.classList.add('animate-pulse', 'text-red-500'); els.streamBtn.classList.replace('bg-white/5', 'bg-emerald-500/20'); els.streamText.innerText = 'LIVE';
+                };
+                state.webSocket.onerror = () => { console.error("Could not connect to local streaming bridge."); if(state.isStreaming) els.streamBtn.click(); stream.getTracks().forEach(t => t.stop()); };
+            });
+            
+            els.video.addEventListener('resize', () => { if (state.camShape === 0 && !state.isFullscreenCam && !state.isDiscussionMode) { state.camCustomSize = null; updateCameraUI(); } });
+        }
+    </script>
+</body>
+</html>
